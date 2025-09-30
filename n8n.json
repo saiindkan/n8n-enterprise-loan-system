@@ -92,7 +92,7 @@
           "sendBody": true,
           "bodyContentType": "json",
           "specifyBody": "json",
-          "jsonBody": "={\n  \"model\": \"gpt-4o\",\n  \"temperature\": 0.1,\n  \"max_tokens\": 500,\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"You are a document processing AI agent. Analyze loan documents and extract key information. Return ONLY valid JSON.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"Process these loan documents: {{ JSON.stringify($json.data) }}\"\n    }\n  ]\n}",
+          "jsonBody": "={\n  \"model\": \"gpt-3.5-turbo\",\n  \"temperature\": 0.1,\n  \"max_tokens\": 500,\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"You are a document processing AI agent. Analyze loan documents and extract key information. Return ONLY valid JSON.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"Process these loan documents: {{ JSON.stringify($json.data) }}\"\n    }\n  ]\n}",
           "options": {
             "response": {
               "response": { "neverError": true, "responseFormat": "json" }
