@@ -118,7 +118,8 @@
            "headerParameters": {
              "parameters": [
                { "name": "Content-Type", "value": "application/json" },
-               { "name": "Accept", "value": "application/json" }
+               { "name": "Accept", "value": "application/json" },
+               { "name": "X-Amz-Content-Sha256", "value": "UNSIGNED-PAYLOAD" }
              ]
            },
            "sendBody": true,
