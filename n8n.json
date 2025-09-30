@@ -15,13 +15,48 @@
     },
     {
       "parameters": {
-        "functionCode": "// Simple validation\nconst data = $json.body || $json;\nconst errors = [];\n\nif (!data.loan_id) errors.push('Missing loan_id');\nif (!data.borrower_name) errors.push('Missing borrower_name');\nif (!data.loan_amount) errors.push('Missing loan_amount');\n\nif (errors.length > 0) {\n  return [{ valid: false, errors }];\n}\n\nreturn [{ valid: true, data }];"
+        "httpMethod": "POST",
+        "path": "document-upload",
+        "responseMode": "responseNode",
+        "options": {
+          "binaryData": true
+        }
       },
-      "id": "function-validation",
-      "name": "Validation",
+      "id": "webhook-upload",
+      "name": "Webhook File Upload",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 400]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Process uploaded documents and extract loan data\nconst items = $input.all();\nconst files = [];\n\n// Extract file information from binary data\nfor (const item of items) {\n  if (item.binary && item.binary.file) {\n    const file = item.binary.file;\n    files.push({\n      filename: file.fileName || 'uploaded_file',\n      mimeType: file.mimeType || 'application/octet-stream',\n      size: file.data ? file.data.length : 0,\n      content: 'File uploaded successfully'\n    });\n  }\n}\n\n// Simulate document processing and data extraction\nconst extractedData = {\n  loan_id: `LOAN-${Date.now()}`,\n  borrower_name: 'Extracted from Document',\n  loan_amount: 300000,\n  property_address: '123 Main St, City, ST 12345',\n  annual_income: 75000,\n  credit_score: 720,\n  documents: files,\n  source: 'file_upload',\n  processing_status: 'documents_processed'\n};\n\nreturn [{ data: extractedData, valid: true }];"
+      },
+      "id": "function-extract",
+      "name": "Document Extraction Agent",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [460, 400]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Normalize JSON input\nconst data = $json.body || $json;\nreturn [{ data, valid: true }];"
+      },
+      "id": "function-normalize",
+      "name": "Normalize JSON Input",
       "type": "n8n-nodes-base.function",
       "typeVersion": 1,
       "position": [460, 200]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Enhanced validation for both JSON and file upload\nconst data = $json.data || {};\nconst errors = [];\n\n// Required fields\nif (!data.loan_id) errors.push('Missing loan_id');\nif (!data.borrower_name) errors.push('Missing borrower_name');\nif (!data.loan_amount) errors.push('Missing loan_amount');\n\n// Business rules\nif (data.loan_amount && data.loan_amount < 50000) {\n  errors.push('Minimum loan amount is $50,000');\n}\nif (data.loan_amount && data.loan_amount > 2000000) {\n  errors.push('Maximum loan amount is $2,000,000');\n}\n\n// Document validation\nif (data.documents && data.documents.length === 0) {\n  errors.push('At least one document is required');\n}\n\nif (errors.length > 0) {\n  return [{ valid: false, errors, data }];\n}\n\nreturn [{ valid: true, data }];"
+      },
+      "id": "function-validation",
+      "name": "Enhanced Validation",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [680, 300]
     },
     {
       "parameters": {
@@ -81,14 +116,47 @@
       "main": [
         [
           {
-            "node": "Validation",
+            "node": "Normalize JSON Input",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Validation": {
+    "Webhook File Upload": {
+      "main": [
+        [
+          {
+            "node": "Document Extraction Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize JSON Input": {
+      "main": [
+        [
+          {
+            "node": "Enhanced Validation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Document Extraction Agent": {
+      "main": [
+        [
+          {
+            "node": "Enhanced Validation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enhanced Validation": {
       "main": [
         [
           {
