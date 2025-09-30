@@ -15,6 +15,18 @@
     },
     {
       "parameters": {
+        "options": {
+          "binaryData": true
+        }
+      },
+      "id": "manual-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [40, 300]
+    },
+    {
+      "parameters": {
         "httpMethod": "POST",
         "path": "file-upload",
         "responseMode": "responseNode",
@@ -143,6 +155,17 @@
         [
           {
             "node": "Normalize JSON Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Document Extraction Agent",
             "type": "main",
             "index": 0
           }
