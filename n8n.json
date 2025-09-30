@@ -168,7 +168,7 @@
           },
           "sendBody": true,
           "specifyBody": "json",
-          "jsonBody": "={\n  \"model\": \"llama3.2:3b\",\n  \"prompt\": \"You are a document processing AI agent using Ollama. Analyze these loan documents and extract key information. Return ONLY valid JSON. Here is the loan data: \" + JSON.stringify($json.data),\n  \"stream\": false,\n  \"options\": {\n    \"temperature\": 0.1,\n    \"top_p\": 0.9,\n    \"max_tokens\": 500\n  }\n}",
+          "jsonBody": "{\n  \"model\": \"llama3.2:3b\",\n  \"prompt\": \"You are a document processing AI agent using Ollama. Analyze these loan documents and extract key information. Return ONLY valid JSON with document_results structure.\",\n  \"stream\": false,\n  \"options\": {\n    \"temperature\": 0.1,\n    \"top_p\": 0.9,\n    \"max_tokens\": 500\n  }\n}",
           "options": {
             "response": {
               "response": {
