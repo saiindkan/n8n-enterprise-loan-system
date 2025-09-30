@@ -92,7 +92,7 @@
           "sendBody": true,
           "bodyContentType": "json",
           "specifyBody": "json",
-          "jsonBody": "={\n  \"model\": \"gpt-3.5-turbo\",\n  \"temperature\": 0.1,\n  \"max_tokens\": 500,\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"You are a document processing AI agent. Analyze loan documents and extract key information. Return ONLY valid JSON.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"Process these loan documents: {{ JSON.stringify($json.data) }}\"\n    }\n  ]\n}",
+          "jsonBody": "={\n  \"model\": \"gpt-3.5-turbo\",\n  \"temperature\": 0.1,\n  \"max_tokens\": 500,\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"You are a document processing AI agent. Analyze loan documents and extract key information. Return ONLY valid JSON.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"Process these loan documents: {\\\"loan_id\\\":\\\"LOAN-1759269964352\\\",\\\"borrower_name\\\":\\\"Extracted from Document\\\",\\\"loan_amount\\\":300000,\\\"property_address\\\":\\\"123 Main St, City, ST 12345\\\",\\\"annual_income\\\":75000,\\\"credit_score\\\":720,\\\"documents\\\":[{\\\"filename\\\":\\\"uploaded_document.pdf\\\",\\\"mimeType\\\":\\\"application/pdf\\\",\\\"size\\\":2400,\\\"content\\\":\\\"File uploaded successfully\\\"}],\\\"source\\\":\\\"file_upload\\\",\\\"processing_status\\\":\\\"documents_processed\\\"}\"\n    }\n  ]\n}",
           "options": {
             "response": {
               "response": { "neverError": true, "responseFormat": "json" }
