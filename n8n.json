@@ -124,7 +124,7 @@
            "sendBody": true,
            "bodyContentType": "json",
            "specifyBody": "json",
-           "jsonBody": "={\n  \"anthropic_version\": \"bedrock-2023-05-31\",\n  \"max_tokens\": 500,\n  \"temperature\": 0.1,\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"You are a document processing AI agent using AWS Bedrock. Analyze these loan documents and extract key information. Return ONLY valid JSON with this structure: {\\\"bedrock_results\\\": {\\\"total_documents\\\": 1, \\\"processed_documents\\\": [{\\\"document_id\\\": \\\"DOC-BEDROCK-001\\\", \\\"filename\\\": \\\"processed_document\\\", \\\"document_type\\\": \\\"loan_application\\\", \\\"status\\\": \\\"processed\\\", \\\"confidence\\\": 0.95, \\\"extracted_data\\\": {...}}], \\\"processing_time\\\": \\\"1.5 seconds\\\", \\\"ai_confidence\\\": 0.90, \\\"model_used\\\": \\\"claude-3-haiku\\\"}}. Here is the loan data: {{ JSON.stringify($json.data) }}\"\n    }\n  ]\n}",
+           "jsonBody": "={\n  \"anthropic_version\": \"bedrock-2023-05-31\",\n  \"max_tokens\": 500,\n  \"temperature\": 0.1,\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"You are a document processing AI agent using AWS Bedrock. Analyze these loan documents and extract key information. Return ONLY valid JSON. Here is the loan data: {{ JSON.stringify($json.data) }}\"\n    }\n  ]\n}",
            "options": {
              "response": {
                "response": { "neverError": true, "responseFormat": "json" }
