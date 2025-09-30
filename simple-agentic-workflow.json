@@ -67,7 +67,7 @@
       "parameters": {
         "responseMode": "lastNode",
         "responseData": "json",
-        "responseBody": "={\n  \"status\": \"error\",\n  \"message\": \"Validation failed\",\n  \"errors\": {{ JSON.stringify($json.errors) }},\n  \"timestamp\": \"{{ new Date().toISOString() }}\"\n}"
+        "responseBody": "={\n  \"status\": \"error\",\n  \"message\": \"Validation failed\",\n  \"errors\": {{ JSON.stringify($json.errors) }},\n  \"debug\": {{ JSON.stringify($json.debug) }},\n  \"timestamp\": \"{{ new Date().toISOString() }}\"\n}"
       },
       "id": "respond-2",
       "name": "Error Response",
