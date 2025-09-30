@@ -1,0 +1,401 @@
+{
+  "name": "AI-First Agentic Loan Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "loan-application",
+        "responseMode": "responseNode"
+      },
+      "id": "webhook-json",
+      "name": "Webhook JSON",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 200]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "document-upload",
+        "responseMode": "responseNode",
+        "options": {
+          "binaryData": true
+        }
+      },
+      "id": "webhook-upload",
+      "name": "Webhook File Upload",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParametersUi": {
+          "parameter": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $env.OPENAI_API_KEY }}"
+            }
+          ]
+        },
+        "jsonParameters": true,
+        "bodyParametersJson": "={\n  \"model\": \"gpt-4o-mini\",\n  \"temperature\": 0.1,\n  \"max_tokens\": 500,\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"You are a document processing AI agent. Extract loan application data from uploaded files. Return ONLY valid JSON with this structure: {\\\"loan_id\\\": \\\"string\\\", \\\"borrower_name\\\": \\\"string\\\", \\\"loan_amount\\\": number, \\\"property_address\\\": \\\"string\\\", \\\"annual_income\\\": number, \\\"credit_score\\\": number, \\\"documents\\\": [{\\\"filename\\\": \\\"string\\\", \\\"type\\\": \\\"string\\\"}], \\\"source\\\": \\\"file_upload\\\"}\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"Process these uploaded files and extract loan application data: {{ JSON.stringify($json) }}\"\n    }\n  ]\n}"
+      },
+      "id": "ai-document-extractor",
+      "name": "AI Document Extractor",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [460, 400]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Normalize JSON input\nconst data = $json.body || $json;\nreturn [{ data, valid: true }];"
+      },
+      "id": "function-normalize",
+      "name": "Normalize JSON Input",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [460, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParametersUi": {
+          "parameter": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $env.OPENAI_API_KEY }}"
+            }
+          ]
+        },
+        "jsonParameters": true,
+        "bodyParametersJson": "={\n  \"model\": \"gpt-4o-mini\",\n  \"temperature\": 0.1,\n  \"max_tokens\": 300,\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"You are a loan application validation AI. Validate the loan application data and return ONLY valid JSON: {\\\"valid\\\": true/false, \\\"errors\\\": [\\\"error1\\\", \\\"error2\\\"], \\\"data\\\": {...original_data}}\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"Validate this loan application: {{ JSON.stringify($json.data || $json) }}\"\n    }\n  ]\n}"
+      },
+      "id": "ai-validator",
+      "name": "AI Validator",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Parse AI validation response\nconst content = $json.choices?.[0]?.message?.content || '{}';\nlet result;\ntry {\n  result = JSON.parse(content);\n} catch (e) {\n  result = { valid: false, errors: ['AI validation failed'], data: $json };\n}\nreturn [result];"
+      },
+      "id": "function-parse-validation",
+      "name": "Parse Validation",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.valid }}",
+              "operation": "equal",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "if-valid",
+      "name": "If Valid",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParametersUi": {
+          "parameter": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $env.OPENAI_API_KEY }}"
+            }
+          ]
+        },
+        "jsonParameters": true,
+        "bodyParametersJson": "={\n  \"model\": \"gpt-4o-mini\",\n  \"temperature\": 0.2,\n  \"max_tokens\": 400,\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"You are a document processing AI agent. Analyze loan documents and extract key information. Return ONLY valid JSON: {\\\"document_results\\\": {\\\"total_documents\\\": number, \\\"processed_documents\\\": [{\\\"document_id\\\": \\\"string\\\", \\\"filename\\\": \\\"string\\\", \\\"document_type\\\": \\\"string\\\", \\\"status\\\": \\\"processed\\\", \\\"confidence\\\": number, \\\"extracted_data\\\": {...}}], \\\"processing_time\\\": \\\"string\\\", \\\"ai_confidence\\\": number}}\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"Process these loan documents: {{ JSON.stringify($json.data) }}\"\n    }\n  ]\n}"
+      },
+      "id": "ai-document-processor",
+      "name": "AI Document Processor",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1340, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParametersUi": {
+          "parameter": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $env.OPENAI_API_KEY }}"
+            }
+          ]
+        },
+        "jsonParameters": true,
+        "bodyParametersJson": "={\n  \"model\": \"gpt-4o-mini\",\n  \"temperature\": 0.3,\n  \"max_tokens\": 500,\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"You are a credit risk assessment AI agent. Analyze the loan application and assess risk. Return ONLY valid JSON: {\\\"risk_results\\\": {\\\"overall_risk_score\\\": number, \\\"risk_level\\\": \\\"LOW/MEDIUM/HIGH\\\", \\\"factors\\\": [\\\"factor1\\\", \\\"factor2\\\"], \\\"recommendations\\\": \\\"string\\\", \\\"processing_time\\\": \\\"string\\\", \\\"ai_confidence\\\": number}}\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"Assess risk for this loan application: {{ JSON.stringify($json.data) }}\"\n    }\n  ]\n}"
+      },
+      "id": "ai-risk-assessor",
+      "name": "AI Risk Assessor",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1560, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParametersUi": {
+          "parameter": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $env.OPENAI_API_KEY }}"
+            }
+          ]
+        },
+        "jsonParameters": true,
+        "bodyParametersJson": "={\n  \"model\": \"gpt-4o-mini\",\n  \"temperature\": 0.1,\n  \"max_tokens\": 600,\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"You are a compliance AI agent. Check loan application for regulatory compliance (TRID, HMDA, ECOA, CRA, FCRA, GLBA, AML). Return ONLY valid JSON: {\\\"compliance_results\\\": {\\\"overall_compliance\\\": \\\"COMPLIANT/NON_COMPLIANT\\\", \\\"regulations_checked\\\": [\\\"TRID\\\", \\\"HMDA\\\", ...], \\\"violations\\\": [\\\"violation1\\\", ...], \\\"compliance_score\\\": number, \\\"recommendations\\\": \\\"string\\\", \\\"processing_time\\\": \\\"string\\\", \\\"ai_confidence\\\": number}}\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"Check compliance for this loan application: {{ JSON.stringify($json.data) }}\"\n    }\n  ]\n}"
+      },
+      "id": "ai-compliance-checker",
+      "name": "AI Compliance Checker",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1780, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParametersUi": {
+          "parameter": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $env.OPENAI_API_KEY }}"
+            }
+          ]
+        },
+        "jsonParameters": true,
+        "bodyParametersJson": "={\n  \"model\": \"gpt-4o-mini\",\n  \"temperature\": 0.2,\n  \"max_tokens\": 500,\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"You are a senior loan officer AI. Make the final loan decision based on all analysis. Return ONLY valid JSON: {\\\"final_decision\\\": {\\\"decision\\\": \\\"APPROVED/REJECTED/PENDING\\\", \\\"confidence\\\": number, \\\"loan_terms\\\": {\\\"interest_rate\\\": number, \\\"term_months\\\": number, \\\"monthly_payment\\\": number}, \\\"reasoning\\\": \\\"string\\\", \\\"processing_time\\\": \\\"string\\\", \\\"ai_confidence\\\": number}}\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"Make final loan decision based on: {{ JSON.stringify($json.data) }}\"\n    }\n  ]\n}"
+      },
+      "id": "ai-decision-maker",
+      "name": "AI Decision Maker",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [2000, 200]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Merge all AI results\nconst data = $json.data || {};\nconst documentResults = $json.document_results || {};\nconst riskResults = $json.risk_results || {};\nconst complianceResults = $json.compliance_results || {};\nconst finalDecision = $json.final_decision || {};\n\nreturn [{\n  data: {\n    ...data,\n    document_results: documentResults,\n    risk_results: riskResults,\n    compliance_results: complianceResults,\n    final_decision: finalDecision\n  }\n}];"
+      },
+      "id": "function-merge-results",
+      "name": "Merge AI Results",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [2220, 200]
+    },
+    {
+      "parameters": {
+        "responseMode": "lastNode",
+        "responseData": "json",
+        "responseBody": "={\n  \"status\": \"success\",\n  \"loan_id\": \"{{ $json.data.loan_id }}\",\n  \"borrower_name\": \"{{ $json.data.borrower_name }}\",\n  \"final_decision\": {{ JSON.stringify($json.data.final_decision) }},\n  \"risk_results\": {{ JSON.stringify($json.data.risk_results) }},\n  \"compliance_results\": {{ JSON.stringify($json.data.compliance_results) }},\n  \"document_results\": {{ JSON.stringify($json.data.document_results) }},\n  \"processing_source\": \"{{ $json.data.source }}\",\n  \"timestamp\": \"{{ new Date().toISOString() }}\"\n}"
+      },
+      "id": "respond-success",
+      "name": "Success Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2440, 200]
+    },
+    {
+      "parameters": {
+        "responseMode": "lastNode",
+        "responseData": "json",
+        "responseBody": "={\n  \"status\": \"error\",\n  \"message\": \"AI validation failed\",\n  \"errors\": {{ JSON.stringify($json.errors) }},\n  \"timestamp\": \"{{ new Date().toISOString() }}\"\n}"
+      },
+      "id": "respond-error",
+      "name": "Error Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1340, 400]
+    }
+  ],
+  "connections": {
+    "Webhook JSON": {
+      "main": [
+        [
+          {
+            "node": "Normalize JSON Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook File Upload": {
+      "main": [
+        [
+          {
+            "node": "AI Document Extractor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize JSON Input": {
+      "main": [
+        [
+          {
+            "node": "AI Validator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Document Extractor": {
+      "main": [
+        [
+          {
+            "node": "AI Validator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Validator": {
+      "main": [
+        [
+          {
+            "node": "Parse Validation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Validation": {
+      "main": [
+        [
+          {
+            "node": "If Valid",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Valid": {
+      "main": [
+        [
+          {
+            "node": "AI Document Processor",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Error Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Document Processor": {
+      "main": [
+        [
+          {
+            "node": "AI Risk Assessor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Risk Assessor": {
+      "main": [
+        [
+          {
+            "node": "AI Compliance Checker",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Compliance Checker": {
+      "main": [
+        [
+          {
+            "node": "AI Decision Maker",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Decision Maker": {
+      "main": [
+        [
+          {
+            "node": "Merge AI Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge AI Results": {
+      "main": [
+        [
+          {
+            "node": "Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

@@ -1,0 +1,132 @@
+{
+  "name": "Simple Agentic Loan Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "loan-application",
+        "responseMode": "responseNode"
+      },
+      "id": "webhook-1",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Simple validation\nconst data = $json;\nconst errors = [];\n\nif (!data.loan_id) errors.push('Missing loan_id');\nif (!data.borrower_name) errors.push('Missing borrower_name');\nif (!data.loan_amount) errors.push('Missing loan_amount');\n\nif (errors.length > 0) {\n  return [{ valid: false, errors }];\n}\n\nreturn [{ valid: true, data }];"
+      },
+      "id": "function-1",
+      "name": "Validation",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.valid }}",
+              "operation": "equal",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "if-1",
+      "name": "If Valid",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Simple AI agent simulation\nconst data = $json.data;\n\n// Simulate AI processing\nconst result = {\n  loan_id: data.loan_id,\n  borrower_name: data.borrower_name,\n  loan_amount: data.loan_amount,\n  decision: 'APPROVED',\n  risk_score: 75,\n  interest_rate: 4.5,\n  processing_time: '2.3 seconds',\n  ai_confidence: 0.87\n};\n\nreturn [{ result }];"
+      },
+      "id": "function-2",
+      "name": "AI Agent",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [900, 200]
+    },
+    {
+      "parameters": {
+        "responseMode": "lastNode",
+        "responseData": "json",
+        "responseBody": "={\n  \"status\": \"success\",\n  \"loan_decision\": {{ JSON.stringify($json.result) }},\n  \"timestamp\": \"{{ new Date().toISOString() }}\"\n}"
+      },
+      "id": "respond-1",
+      "name": "Success Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1120, 200]
+    },
+    {
+      "parameters": {
+        "responseMode": "lastNode",
+        "responseData": "json",
+        "responseBody": "={\n  \"status\": \"error\",\n  \"message\": \"Validation failed\",\n  \"errors\": {{ JSON.stringify($json.errors) }},\n  \"timestamp\": \"{{ new Date().toISOString() }}\"\n}"
+      },
+      "id": "respond-2",
+      "name": "Error Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [900, 400]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Validation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validation": {
+      "main": [
+        [
+          {
+            "node": "If Valid",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Valid": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Error Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

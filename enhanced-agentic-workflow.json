@@ -1,0 +1,263 @@
+{
+  "name": "Enhanced Agentic Loan Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "loan-application",
+        "responseMode": "responseNode"
+      },
+      "id": "webhook-json",
+      "name": "Webhook JSON",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 200]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "document-upload",
+        "responseMode": "responseNode",
+        "options": {
+          "binaryData": true
+        }
+      },
+      "id": "webhook-upload",
+      "name": "Webhook File Upload",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 400]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Process uploaded documents and extract loan data\nconst items = $input.all();\nconst files = [];\n\n// Extract file information from binary data\nfor (const item of items) {\n  if (item.binary && item.binary.file) {\n    const file = item.binary.file;\n    files.push({\n      filename: file.fileName || 'uploaded_file',\n      mimeType: file.mimeType || 'application/octet-stream',\n      size: file.data ? file.data.length : 0,\n      content: 'File uploaded successfully'\n    });\n  }\n}\n\n// Simulate document processing and data extraction\nconst extractedData = {\n  loan_id: `LOAN-${Date.now()}`,\n  borrower_name: 'Extracted from Document',\n  loan_amount: 300000,\n  property_address: '123 Main St, City, ST 12345',\n  annual_income: 75000,\n  credit_score: 720,\n  documents: files,\n  source: 'file_upload',\n  processing_status: 'documents_processed'\n};\n\nreturn [{ data: extractedData, valid: true }];"
+      },
+      "id": "function-extract",
+      "name": "Document Extraction Agent",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [460, 400]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Normalize JSON input\nconst data = $json.body || $json;\nreturn [{ data, valid: true }];"
+      },
+      "id": "function-normalize",
+      "name": "Normalize JSON Input",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [460, 200]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Enhanced validation for both JSON and file upload\nconst data = $json.data || {};\nconst errors = [];\n\n// Required fields\nif (!data.loan_id) errors.push('Missing loan_id');\nif (!data.borrower_name) errors.push('Missing borrower_name');\nif (!data.loan_amount) errors.push('Missing loan_amount');\n\n// Business rules\nif (data.loan_amount && data.loan_amount < 50000) {\n  errors.push('Minimum loan amount is $50,000');\n}\nif (data.loan_amount && data.loan_amount > 2000000) {\n  errors.push('Maximum loan amount is $2,000,000');\n}\n\n// Document validation\nif (data.documents && data.documents.length === 0) {\n  errors.push('At least one document is required');\n}\n\nif (errors.length > 0) {\n  return [{ valid: false, errors, data }];\n}\n\nreturn [{ valid: true, data }];"
+      },
+      "id": "function-validation",
+      "name": "Enhanced Validation",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.valid }}",
+              "operation": "equal",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "if-valid",
+      "name": "If Valid",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Document Processing Agent\nconst data = $json.data;\nconst documents = data.documents || [];\n\n// Simulate document analysis\nconst documentResults = {\n  total_documents: documents.length,\n  processed_documents: documents.map((doc, index) => ({\n    document_id: `DOC-${index + 1}`,\n    filename: doc.filename,\n    document_type: doc.filename.includes('app') ? 'loan_application' : \n                   doc.filename.includes('bank') ? 'bank_statement' : \n                   doc.filename.includes('pay') ? 'pay_stub' : 'other',\n    status: 'processed',\n    confidence: 0.95,\n    extracted_data: {\n      borrower_name: data.borrower_name,\n      loan_amount: data.loan_amount,\n      property_address: data.property_address\n    }\n  })),\n  processing_time: '1.2 seconds',\n  ai_confidence: 0.92\n};\n\nreturn [{ \n  data: { ...data, document_results: documentResults },\n  valid: true \n}];"
+      },
+      "id": "function-doc-agent",
+      "name": "Document Processing Agent",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1120, 200]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Risk Assessment Agent\nconst data = $json.data;\nconst documentResults = data.document_results || {};\n\n// Simulate risk analysis\nconst riskScore = Math.floor(Math.random() * 40) + 60; // 60-100\nconst riskLevel = riskScore >= 80 ? 'LOW' : riskScore >= 70 ? 'MEDIUM' : 'HIGH';\n\nconst riskResults = {\n  overall_risk_score: riskScore,\n  risk_level: riskLevel,\n  factors: [\n    'Credit score analysis',\n    'Income verification',\n    'Property valuation',\n    'Debt-to-income ratio'\n  ],\n  recommendations: riskLevel === 'LOW' ? 'Approve with standard terms' : \n                  riskLevel === 'MEDIUM' ? 'Approve with conditions' : \n                  'Require additional documentation',\n  processing_time: '0.8 seconds',\n  ai_confidence: 0.88\n};\n\nreturn [{ \n  data: { ...data, risk_results: riskResults },\n  valid: true \n}];"
+      },
+      "id": "function-risk-agent",
+      "name": "Risk Assessment Agent",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1340, 200]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Compliance Agent\nconst data = $json.data;\nconst riskResults = data.risk_results || {};\n\n// Simulate compliance checks\nconst complianceResults = {\n  overall_compliance: 'COMPLIANT',\n  regulations_checked: [\n    'TRID (Truth in Lending)',\n    'HMDA (Home Mortgage Disclosure)',\n    'ECOA (Equal Credit Opportunity)',\n    'CRA (Community Reinvestment)',\n    'FCRA (Fair Credit Reporting)',\n    'GLBA (Gramm-Leach-Bliley)',\n    'AML (Anti-Money Laundering)'\n  ],\n  violations: [],\n  compliance_score: 95,\n  recommendations: 'Proceed with standard compliance procedures',\n  processing_time: '0.6 seconds',\n  ai_confidence: 0.94\n};\n\nreturn [{ \n  data: { ...data, compliance_results: complianceResults },\n  valid: true \n}];"
+      },
+      "id": "function-compliance-agent",
+      "name": "Compliance Agent",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1560, 200]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Final Decision Agent\nconst data = $json.data;\nconst riskResults = data.risk_results || {};\nconst complianceResults = data.compliance_results || {};\n\n// Make final decision\nconst riskScore = riskResults.overall_risk_score || 75;\nconst isCompliant = complianceResults.overall_compliance === 'COMPLIANT';\n\nconst decision = riskScore >= 75 && isCompliant ? 'APPROVED' : 'REJECTED';\nconst confidence = Math.min(0.95, (riskScore / 100) * 0.9 + 0.1);\n\nconst finalDecision = {\n  decision: decision,\n  confidence: confidence,\n  loan_terms: {\n    interest_rate: decision === 'APPROVED' ? 4.5 : null,\n    term_months: decision === 'APPROVED' ? 360 : null,\n    monthly_payment: decision === 'APPROVED' ? \n      Math.round((data.loan_amount * 0.045 / 12) / (1 - Math.pow(1 + 0.045/12, -360))) : null\n  },\n  reasoning: decision === 'APPROVED' ? \n    'Loan approved based on risk assessment and compliance check' : \n    'Loan rejected due to risk factors or compliance issues',\n  processing_time: '0.4 seconds',\n  ai_confidence: confidence\n};\n\nreturn [{ \n  data: { ...data, final_decision: finalDecision },\n  valid: true \n}];"
+      },
+      "id": "function-decision-agent",
+      "name": "Final Decision Agent",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1780, 200]
+    },
+    {
+      "parameters": {
+        "responseMode": "lastNode",
+        "responseData": "json",
+        "responseBody": "={\n  \"status\": \"success\",\n  \"loan_id\": \"{{ $json.data.loan_id }}\",\n  \"borrower_name\": \"{{ $json.data.borrower_name }}\",\n  \"final_decision\": {{ JSON.stringify($json.data.final_decision) }},\n  \"risk_results\": {{ JSON.stringify($json.data.risk_results) }},\n  \"compliance_results\": {{ JSON.stringify($json.data.compliance_results) }},\n  \"document_results\": {{ JSON.stringify($json.data.document_results) }},\n  \"processing_source\": \"{{ $json.data.source }}\",\n  \"timestamp\": \"{{ new Date().toISOString() }}\"\n}"
+      },
+      "id": "respond-success",
+      "name": "Success Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2000, 200]
+    },
+    {
+      "parameters": {
+        "responseMode": "lastNode",
+        "responseData": "json",
+        "responseBody": "={\n  \"status\": \"error\",\n  \"message\": \"Validation failed\",\n  \"errors\": {{ JSON.stringify($json.errors) }},\n  \"timestamp\": \"{{ new Date().toISOString() }}\"\n}"
+      },
+      "id": "respond-error",
+      "name": "Error Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1120, 400]
+    }
+  ],
+  "connections": {
+    "Webhook JSON": {
+      "main": [
+        [
+          {
+            "node": "Normalize JSON Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook File Upload": {
+      "main": [
+        [
+          {
+            "node": "Document Extraction Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize JSON Input": {
+      "main": [
+        [
+          {
+            "node": "Enhanced Validation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Document Extraction Agent": {
+      "main": [
+        [
+          {
+            "node": "Enhanced Validation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enhanced Validation": {
+      "main": [
+        [
+          {
+            "node": "If Valid",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Valid": {
+      "main": [
+        [
+          {
+            "node": "Document Processing Agent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Error Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Document Processing Agent": {
+      "main": [
+        [
+          {
+            "node": "Risk Assessment Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Risk Assessment Agent": {
+      "main": [
+        [
+          {
+            "node": "Compliance Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compliance Agent": {
+      "main": [
+        [
+          {
+            "node": "Final Decision Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Final Decision Agent": {
+      "main": [
+        [
+          {
+            "node": "Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

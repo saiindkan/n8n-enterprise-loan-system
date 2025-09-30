@@ -1,0 +1,306 @@
+{
+  "name": "Enterprise Agentic Loan Workflow",
+  "nodes": [
+    {
+      "id": "webhook_json",
+      "name": "Webhook JSON",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [140, 160],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "enterprise-loan-application",
+        "responseMode": "responseNode"
+      }
+    },
+    {
+      "id": "webhook_upload",
+      "name": "Webhook File Upload",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [140, 420],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "document-upload",
+        "responseMode": "responseNode",
+        "options": { "binaryData": true }
+      }
+    },
+    {
+      "id": "extract_from_upload",
+      "name": "Document Extraction Agent (AI)",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2,
+      "position": [400, 420],
+      "parameters": {
+        "functionCode": "// Convert uploaded files into normalized loan JSON (mock baseline)\nconst items = $input.all();\nconst files = items.map(i => ({\n  filename: i.binary?.file?.fileName || 'upload.pdf',\n  mime: i.binary?.file?.mimeType || 'application/pdf',\n  size: i.binary?.file?.data?.length || 0,\n  content_ref: 'binary:file'\n}));\nconst loan = {\n  loan_id: `LOAN-${Date.now()}`,\n  borrower_info: { name: 'Unknown', email: 'unknown@example.com', ssn: '123-45-6789' },\n  financial_info: { annual_income: 75000, credit_score: 700 },\n  property_info: { address: 'TBD', purchase_price: 300000, loan_amount: 240000 },\n  documents: files,\n  source: 'file_upload'\n};\nreturn [{ data: loan, valid: true }];"
+      }
+    },
+    {
+      "id": "normalize_json",
+      "name": "Normalize JSON Input",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2,
+      "position": [400, 160],
+      "parameters": {
+        "functionCode": "// Ensure Webhook JSON matches normalized shape\nconst d = $json;\nreturn [{ data: d, valid: true }];"
+      }
+    },
+    {
+      "id": "validation",
+      "name": "Enterprise Validation",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2,
+      "position": [660, 260],
+      "parameters": {
+        "functionCode": "// Validate enterprise loan application\nconst data = $json.data || {};\nconst req = ['loan_id','borrower_info.name','borrower_info.email','borrower_info.ssn','financial_info.annual_income','financial_info.credit_score','property_info.address','property_info.purchase_price','property_info.loan_amount','documents'];\nconst get=(p,o)=>p.split('.').reduce((a,k)=>a?.[k],o);\nconst errors=[];\nfor(const f of req){ const v=get(f,data); if(v===undefined||v===null||v===''){ errors.push(`Missing required field: ${f}`);} }\nif(get('financial_info.annual_income',data)<30000) errors.push('Minimum annual income not met');\nif(get('financial_info.credit_score',data)<580) errors.push('Credit score below minimum threshold');\nconst p=get('property_info.purchase_price',data), l=get('property_info.loan_amount',data);\nif(p&&l&&l/p>0.95) errors.push('LTV exceeds 95%');\nif((data.documents||[]).length<1) errors.push('At least 1 document required');\nconst ssn=get('borrower_info.ssn',data); if(ssn && !/^\\d{3}-\\d{2}-\\d{4}$/.test(ssn)) errors.push('Invalid SSN format');\nconst email=get('borrower_info.email',data); if(email && !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) errors.push('Invalid email format');\nif(errors.length){ return [{ valid:false, errors, status:'validation_failed' }]; }\nreturn [{ valid:true, data, status:'validation_passed' }];"
+      }
+    },
+    {
+      "id": "if_valid",
+      "name": "Validation Check",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [900, 260],
+      "parameters": {
+        "conditions": { "boolean": [{ "value1": "={{ $json.valid }}", "operation": "equal", "value2": true }] }
+      }
+    },
+    {
+      "id": "respond_validation_error",
+      "name": "Validation Error Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1120, 380],
+      "parameters": {
+        "responseMode": "lastNode",
+        "responseData": "json",
+        "responseBody": "{\n  \"status\": \"error\",\n  \"message\": \"Enterprise loan application validation failed\",\n  \"errors\": \"{{ JSON.stringify($json.errors) }}\",\n  \"timestamp\": \"{{ new Date().toISOString() }}\"\n}"
+      }
+    },
+    {
+      "id": "router_llm",
+      "name": "Agent Router (LLM Call)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1140, 140],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParametersUi": {
+          "parameter": [
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Authorization", "value": "Bearer {{ $env.OPENAI_API_KEY }}" }
+          ]
+        },
+        "jsonParameters": true,
+        "options": { "timeout": 30000 },
+        "bodyParametersJson": "={\n  \"model\": \"gpt-4o-mini\",\n  \"temperature\": 0.2,\n  \"max_tokens\": 100,\n  \"messages\": [\n    {\"role\":\"system\",\"content\":\"You are an orchestrator. Choose next action strictly from: document_process, risk_assess, compliance_check, decide, finish. Return ONLY JSON: {\\\"action\\\":\\\"...\\\",\\\"reason\\\":\\\"...\\\"}.\"},\n    {\"role\":\"user\",\"content\":\"State: {{ JSON.stringify({loan: $json.data || {}, document_results: $json.document_results || null, risk_results: $json.risk_results || null, compliance_results: $json.compliance_results || null}) }}\"}\n  ]\n}"
+      }
+    },
+    {
+      "id": "parse_router",
+      "name": "Parse Router Output",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2,
+      "position": [1400, 140],
+      "parameters": {
+        "functionCode": "const content = $json.choices?.[0]?.message?.content ?? '{}';\nlet router; try{ router = JSON.parse(content);}catch(e){ router = { action:'finish', reason:'parse_error'};}\nreturn [{ router, data: $json.data, document_results: $json.document_results || null, risk_results: $json.risk_results || null, compliance_results: $json.compliance_results || null }];"
+      }
+    },
+    {
+      "id": "switch_action",
+      "name": "Route by Action",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 2,
+      "position": [1640, 140],
+      "parameters": {
+        "propertyName": "={{ $json.router.action }}",
+        "dataType": "string",
+        "rules": [
+          { "operation": "equal", "value": "document_process" },
+          { "operation": "equal", "value": "risk_assess" },
+          { "operation": "equal", "value": "compliance_check" },
+          { "operation": "equal", "value": "decide" },
+          { "operation": "equal", "value": "finish" }
+        ]
+      }
+    },
+    {
+      "id": "doc_agent",
+      "name": "Document Agent (AI)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1880, 20],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParametersUi": {
+          "parameter": [
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Authorization", "value": "Bearer {{ $env.OPENAI_API_KEY }}" }
+          ]
+        },
+        "jsonParameters": true,
+        "bodyParametersJson": "={\n  \"model\": \"gpt-4o-mini\",\n  \"temperature\": 0.1,\n  \"max_tokens\": 400,\n  \"messages\": [\n    {\"role\":\"system\",\"content\":\"You are a document processing agent. Classify docs and extract borrower/property/financial fields. Return JSON {document_results:{...}}.\"},\n    {\"role\":\"user\",\"content\":\"Documents and state: {{ JSON.stringify({docs: $json.data?.documents || [], loan: $json.data || {}}) }}\"}\n  ]\n}"
+      }
+    },
+    {
+      "id": "doc_merge",
+      "name": "Merge Doc Results",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2,
+      "position": [2120, 20],
+      "parameters": {
+        "functionCode": "const content = $json.choices?.[0]?.message?.content ?? '{}';\nlet out={}; try{ out = JSON.parse(content);}catch{}\nreturn [{ data: $json.data, document_results: out.document_results || out || {}, risk_results: $json.risk_results || null, compliance_results: $json.compliance_results || null }];"
+      }
+    },
+    {
+      "id": "risk_agent",
+      "name": "Risk Agent (AI)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1880, 100],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParametersUi": {
+          "parameter": [
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Authorization", "value": "Bearer {{ $env.OPENAI_API_KEY }}" }
+          ]
+        },
+        "jsonParameters": true,
+        "bodyParametersJson": "={\n  \"model\": \"gpt-4o-mini\",\n  \"temperature\": 0.2,\n  \"max_tokens\": 400,\n  \"messages\": [\n    {\"role\":\"system\",\"content\":\"You are a credit risk agent. Compute risk_level, risk_score (0-100), factors. Return JSON {risk_results:{...}}.\"},\n    {\"role\":\"user\",\"content\":\"State: {{ JSON.stringify({loan: $json.data, document_results: $json.document_results}) }}\"}\n  ]\n}"
+      }
+    },
+    {
+      "id": "risk_merge",
+      "name": "Merge Risk Results",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2,
+      "position": [2120, 100],
+      "parameters": {
+        "functionCode": "const content = $json.choices?.[0]?.message?.content ?? '{}';\nlet out={}; try{ out = JSON.parse(content);}catch{}\nreturn [{ data: $json.data, document_results: $json.document_results || null, risk_results: out.risk_results || out || {}, compliance_results: $json.compliance_results || null }];"
+      }
+    },
+    {
+      "id": "comp_agent",
+      "name": "Compliance Agent (AI)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1880, 180],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParametersUi": {
+          "parameter": [
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Authorization", "value": "Bearer {{ $env.OPENAI_API_KEY }}" }
+          ]
+        },
+        "jsonParameters": true,
+        "bodyParametersJson": "={\n  \"model\": \"gpt-4o-mini\",\n  \"temperature\": 0.1,\n  \"max_tokens\": 500,\n  \"messages\": [\n    {\"role\":\"system\",\"content\":\"You are a compliance agent. Check TRID, HMDA, ECOA, CRA, FCRA, GLBA, AML. Return JSON {compliance_results:{overall_compliance:'compliant'|'non_compliant', violations:[...]}}.\"},\n    {\"role\":\"user\",\"content\":\"State: {{ JSON.stringify({loan: $json.data, document_results: $json.document_results, risk_results: $json.risk_results}) }}\"}\n  ]\n}"
+      }
+    },
+    {
+      "id": "comp_merge",
+      "name": "Merge Compliance Results",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2,
+      "position": [2120, 180],
+      "parameters": {
+        "functionCode": "const content = $json.choices?.[0]?.message?.content ?? '{}';\nlet out={}; try{ out = JSON.parse(content);}catch{}\nreturn [{ data: $json.data, document_results: $json.document_results || null, risk_results: $json.risk_results || null, compliance_results: out.compliance_results || out || {} }];"
+      }
+    },
+    {
+      "id": "decision_agent",
+      "name": "Decision Agent (AI)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1880, 260],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParametersUi": {
+          "parameter": [
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "Authorization", "value": "Bearer {{ $env.OPENAI_API_KEY }}" }
+          ]
+        },
+        "jsonParameters": true,
+        "bodyParametersJson": "={\n  \"model\": \"gpt-4o-mini\",\n  \"temperature\": 0.2,\n  \"max_tokens\": 500,\n  \"messages\": [\n    {\"role\":\"system\",\"content\":\"You are a senior loan officer. Decide APPROVED/REJECTED/PENDING with confidence (0-1) and loan_terms. Return JSON {final_decision:{...}}.\"},\n    {\"role\":\"user\",\"content\":\"State: {{ JSON.stringify({loan: $json.data, document_results: $json.document_results, risk_results: $json.risk_results, compliance_results: $json.compliance_results}) }}\"}\n  ]\n}"
+      }
+    },
+    {
+      "id": "decision_merge",
+      "name": "Merge Decision Results",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2,
+      "position": [2120, 260],
+      "parameters": {
+        "functionCode": "const content = $json.choices?.[0]?.message?.content ?? '{}';\nlet out={}; try{ out = JSON.parse(content);}catch{}\nreturn [{ data: $json.data, document_results: $json.document_results || null, risk_results: $json.risk_results || null, compliance_results: $json.compliance_results || null, final_decision: out.final_decision || out || {} }];"
+      }
+    },
+    {
+      "id": "loop_back",
+      "name": "Back to Router",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2,
+      "position": [2360, 110],
+      "parameters": {
+        "functionCode": "return [$json];"
+      }
+    },
+    {
+      "id": "respond_finish",
+      "name": "Final Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1880, 340],
+      "parameters": {
+        "responseMode": "lastNode",
+        "responseData": "json",
+        "responseBody": "{\n  \"status\": \"success\",\n  \"loan_id\": \"{{ $json.data.loan_id }}\",\n  \"final_decision\": {{ JSON.stringify($json.final_decision || {}) }},\n  \"risk_results\": {{ JSON.stringify($json.risk_results || {}) }},\n  \"compliance_results\": {{ JSON.stringify($json.compliance_results || {}) }},\n  \"document_results\": {{ JSON.stringify($json.document_results || {}) }},\n  \"timestamp\": \"{{ new Date().toISOString() }}\"\n}"
+      }
+    }
+  ],
+  "connections": {
+    "webhook_json": { "main": [[{ "node": "normalize_json", "type": "main", "index": 0 }]] },
+    "webhook_upload": { "main": [[{ "node": "extract_from_upload", "type": "main", "index": 0 }]] },
+    "normalize_json": { "main": [[{ "node": "validation", "type": "main", "index": 0 }]] },
+    "extract_from_upload": { "main": [[{ "node": "validation", "type": "main", "index": 0 }]] },
+    "validation": { "main": [[{ "node": "if_valid", "type": "main", "index": 0 }]] },
+    "if_valid": {
+      "main": [
+        [{ "node": "router_llm", "type": "main", "index": 0 }],
+        [{ "node": "respond_validation_error", "type": "main", "index": 0 }]
+      ]
+    },
+    "router_llm": { "main": [[{ "node": "parse_router", "type": "main", "index": 0 }]] },
+    "parse_router": { "main": [[{ "node": "switch_action", "type": "main", "index": 0 }]] },
+    "switch_action": {
+      "main": [
+        [{ "node": "doc_agent", "type": "main", "index": 0 }],
+        [{ "node": "risk_agent", "type": "main", "index": 0 }],
+        [{ "node": "comp_agent", "type": "main", "index": 0 }],
+        [{ "node": "decision_agent", "type": "main", "index": 0 }],
+        [{ "node": "respond_finish", "type": "main", "index": 0 }]
+      ]
+    },
+    "doc_agent": { "main": [[{ "node": "doc_merge", "type": "main", "index": 0 }]] },
+    "risk_agent": { "main": [[{ "node": "risk_merge", "type": "main", "index": 0 }]] },
+    "comp_agent": { "main": [[{ "node": "comp_merge", "type": "main", "index": 0 }]] },
+    "decision_agent": { "main": [[{ "node": "decision_merge", "type": "main", "index": 0 }]] },
+    "doc_merge": { "main": [[{ "node": "loop_back", "type": "main", "index": 0 }]] },
+    "risk_merge": { "main": [[{ "node": "loop_back", "type": "main", "index": 0 }]] },
+    "comp_merge": { "main": [[{ "node": "loop_back", "type": "main", "index": 0 }]] },
+    "decision_merge": { "main": [[{ "node": "loop_back", "type": "main", "index": 0 }]] },
+    "loop_back": { "main": [[{ "node": "router_llm", "type": "main", "index": 0 }]] }
+  }
+}

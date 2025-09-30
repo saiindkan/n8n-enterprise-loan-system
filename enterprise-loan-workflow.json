@@ -1,0 +1,613 @@
+{
+  "name": "Enterprise Agentic Loan Processing Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "enterprise-loan-application",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Enterprise Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "webhookId": "enterprise-loan-webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Enterprise loan application validation\nconst data = $input.first().json;\n\n// Required fields for enterprise system\nconst requiredFields = [\n  'loan_id',\n  'borrower_info.name',\n  'borrower_info.email',\n  'borrower_info.ssn',\n  'financial_info.annual_income',\n  'financial_info.credit_score',\n  'property_info.address',\n  'property_info.purchase_price',\n  'property_info.loan_amount',\n  'documents'\n];\n\nconst errors = [];\n\n// Check required fields\nfor (const field of requiredFields) {\n  const value = field.split('.').reduce((obj, key) => obj?.[key], data);\n  if (!value) {\n    errors.push(`Missing required field: ${field}`);\n  }\n}\n\n// Enterprise-specific validations\nif (data.financial_info?.annual_income && data.financial_info.annual_income < 30000) {\n  errors.push('Minimum annual income requirement not met');\n}\n\nif (data.financial_info?.credit_score && data.financial_info.credit_score < 580) {\n  errors.push('Credit score below minimum threshold');\n}\n\nif (data.property_info?.loan_amount && data.property_info?.purchase_price) {\n  const ltv = data.property_info.loan_amount / data.property_info.purchase_price;\n  if (ltv > 0.95) {\n    errors.push('Loan-to-value ratio exceeds maximum allowed');\n  }\n}\n\n// Document validation\nif (data.documents && data.documents.length < 3) {\n  errors.push('Minimum 3 documents required');\n}\n\n// SSN format validation\nif (data.borrower_info?.ssn) {\n  const ssnRegex = /^\\d{3}-\\d{2}-\\d{4}$/;\n  if (!ssnRegex.test(data.borrower_info.ssn)) {\n    errors.push('Invalid SSN format');\n  }\n}\n\n// Email validation\nif (data.borrower_info?.email) {\n  const emailRegex = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/;\n  if (!emailRegex.test(data.borrower_info.email)) {\n    errors.push('Invalid email format');\n  }\n}\n\nif (errors.length > 0) {\n  return {\n    valid: false,\n    errors: errors,\n    status: 'validation_failed',\n    timestamp: new Date().toISOString()\n  };\n}\n\n// Add enterprise metadata\ndata.validation_timestamp = new Date().toISOString();\ndata.validation_status = 'passed';\ndata.workflow_id = `ENT-WF-${Date.now()}`;\ndata.company_id = data.company_id || 'mortgagecompany1';\ndata.processing_tier = 'enterprise';\n\nreturn {\n  valid: true,\n  data: data,\n  status: 'validation_passed',\n  enterprise_metadata: {\n    processing_tier: 'enterprise',\n    compliance_level: 'high',\n    audit_required: true\n  }\n};"
+      },
+      "id": "enterprise-validation",
+      "name": "Enterprise Validation",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "validation-check",
+              "leftValue": "={{ $json.valid }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equal"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "validation-check",
+      "name": "Validation Check",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:8000/process-documents",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "X-Enterprise-Tier",
+              "value": "enterprise"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "documents",
+              "value": "={{ $json.data.documents }}"
+            },
+            {
+              "name": "borrower_info",
+              "value": "={{ $json.data.borrower_info }}"
+            },
+            {
+              "name": "processing_options",
+              "value": "{\"extract_text\": true, \"classify_documents\": true, \"validate_data\": true, \"enterprise_mode\": true}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 45000
+        }
+      },
+      "id": "document-processing-agent",
+      "name": "Document Processing Agent",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [900, 200]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:8000/process-loan",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "X-Enterprise-Tier",
+              "value": "enterprise"
+            },
+            {
+              "name": "X-Processing-Mode",
+              "value": "agentic"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "loan_data",
+              "value": "={{ $json.data }}"
+            },
+            {
+              "name": "document_results",
+              "value": "={{ $('Document Processing Agent').first().json }}"
+            },
+            {
+              "name": "enterprise_config",
+              "value": "{\"compliance_level\": \"high\", \"audit_required\": true, \"processing_tier\": \"enterprise\"}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "enterprise-agentic-processing",
+      "name": "Enterprise Agentic Processing",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1120, 200]
+    },
+    {
+      "parameters": {
+        "url": "https://api.creditbureau.com/v1/enterprise/credit-check",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpBasicAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $env.CREDIT_BUREAU_ENTERPRISE_KEY }}"
+            },
+            {
+              "name": "X-Enterprise-Tier",
+              "value": "enterprise"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "borrower_name",
+              "value": "={{ $json.data.borrower_info.name }}"
+            },
+            {
+              "name": "ssn",
+              "value": "={{ $json.data.borrower_info.ssn }}"
+            },
+            {
+              "name": "address",
+              "value": "={{ $json.data.borrower_info.address }}"
+            },
+            {
+              "name": "enterprise_check",
+              "value": true
+            }
+          ]
+        },
+        "options": {
+          "timeout": 20000
+        }
+      },
+      "id": "enterprise-credit-check",
+      "name": "Enterprise Credit Check",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [900, 400]
+    },
+    {
+      "parameters": {
+        "url": "https://api.propertyvaluation.com/v1/enterprise/assess",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpBasicAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $env.PROPERTY_ENTERPRISE_API_KEY }}"
+            },
+            {
+              "name": "X-Enterprise-Tier",
+              "value": "enterprise"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "property_address",
+              "value": "={{ $json.data.property_info.address }}"
+            },
+            {
+              "name": "property_type",
+              "value": "={{ $json.data.property_info.property_type }}"
+            },
+            {
+              "name": "purchase_price",
+              "value": "={{ $json.data.property_info.purchase_price }}"
+            },
+            {
+              "name": "enterprise_analysis",
+              "value": true
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "enterprise-property-valuation",
+      "name": "Enterprise Property Valuation",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [900, 600]
+    },
+    {
+      "parameters": {
+        "url": "https://api.compliance.com/v1/enterprise/check",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpBasicAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $env.COMPLIANCE_ENTERPRISE_KEY }}"
+            },
+            {
+              "name": "X-Enterprise-Tier",
+              "value": "enterprise"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "loan_data",
+              "value": "={{ $json.data }}"
+            },
+            {
+              "name": "compliance_level",
+              "value": "enterprise"
+            },
+            {
+              "name": "regulations",
+              "value": "[\"TRID\", \"HMDA\", \"ECOA\", \"CRA\", \"FCRA\", \"GLBA\", \"AML\", \"SOX\", \"GDPR\"]"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 25000
+        }
+      },
+      "id": "enterprise-compliance-check",
+      "name": "Enterprise Compliance Check",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [900, 800]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Enterprise decision processing with comprehensive analysis\nconst agenticResults = $('Enterprise Agentic Processing').first().json;\nconst creditResults = $('Enterprise Credit Check').first().json;\nconst propertyResults = $('Enterprise Property Valuation').first().json;\nconst complianceResults = $('Enterprise Compliance Check').first().json;\nconst originalData = $('Enterprise Validation').first().json.data;\n\n// Enterprise decision logic with enhanced risk assessment\nconst decision = {\n  loan_id: originalData.loan_id,\n  borrower_info: originalData.borrower_info,\n  financial_info: originalData.financial_info,\n  property_info: originalData.property_info,\n  \n  // Agentic system results\n  agentic_decision: agenticResults.final_decision,\n  risk_assessment: agenticResults.risk_assessment,\n  compliance_check: agenticResults.compliance_check,\n  \n  // Enterprise external data\n  enterprise_credit_data: creditResults,\n  enterprise_property_valuation: propertyResults,\n  enterprise_compliance: complianceResults,\n  \n  // Enhanced final decision with enterprise logic\n  final_decision: {\n    decision: agenticResults.final_decision.decision,\n    confidence: agenticResults.final_decision.confidence,\n    reasoning: agenticResults.final_decision.reasoning,\n    loan_terms: agenticResults.final_decision.loan_terms,\n    conditions: agenticResults.final_decision.conditions || [],\n    next_steps: agenticResults.final_decision.next_steps,\n    enterprise_approval_required: agenticResults.final_decision.confidence < 0.95\n  },\n  \n  // Enterprise processing metadata\n  processing_timestamp: new Date().toISOString(),\n  workflow_id: originalData.workflow_id,\n  processing_time: Date.now() - new Date(originalData.validation_timestamp).getTime(),\n  processing_tier: 'enterprise',\n  \n  // Enterprise data validation\n  enterprise_validation: {\n    credit_score_match: Math.abs(creditResults.credit_score - originalData.financial_info.credit_score) <= 5,\n    property_value_match: Math.abs(propertyResults.estimated_value - originalData.property_info.purchase_price) <= (originalData.property_info.purchase_price * 0.05),\n    compliance_status: complianceResults.overall_compliance,\n    data_consistency: 'verified',\n    enterprise_standards_met: true\n  },\n  \n  // Enterprise risk factors\n  enterprise_risk_factors: {\n    credit_risk: creditResults.risk_level,\n    property_risk: propertyResults.risk_assessment,\n    compliance_risk: complianceResults.risk_level,\n    market_risk: propertyResults.market_conditions,\n    operational_risk: 'low'\n  },\n  \n  // Enterprise compliance summary\n  compliance_summary: {\n    trid_compliance: complianceResults.trid_status,\n    hmda_compliance: complianceResults.hmda_status,\n    ecoa_compliance: complianceResults.ecoa_status,\n    fair_lending: complianceResults.fair_lending_status,\n    data_privacy: complianceResults.gdpr_compliance,\n    audit_ready: complianceResults.audit_compliance\n  }\n};\n\n// Add enterprise decision summary\ndecision.enterprise_summary = {\n  status: decision.final_decision.decision,\n  risk_level: agenticResults.risk_assessment?.risk_level || 'unknown',\n  compliance_status: complianceResults.overall_compliance || 'unknown',\n  processing_success: true,\n  external_apis_success: true,\n  enterprise_standards_met: true,\n  audit_compliance: true,\n  regulatory_compliance: true\n};\n\nreturn decision;"
+      },
+      "id": "enterprise-decision-processing",
+      "name": "Enterprise Decision Processing",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1340, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "enterprise-decision-check",
+              "leftValue": "={{ $json.final_decision.decision }}",
+              "rightValue": "APPROVED",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "enterprise-decision-check",
+      "name": "Enterprise Decision Check",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1560, 300]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "table": "enterprise_loan_applications",
+        "columns": "loan_id, borrower_name, borrower_email, borrower_ssn, loan_amount, property_address, decision, confidence, processing_timestamp, workflow_id, processing_tier, compliance_status, audit_required",
+        "values": "={{ $json.loan_id }}, {{ $json.borrower_info.name }}, {{ $json.borrower_info.email }}, {{ $json.borrower_info.ssn }}, {{ $json.property_info.loan_amount }}, {{ $json.property_info.address }}, {{ $json.final_decision.decision }}, {{ $json.final_decision.confidence }}, {{ $json.processing_timestamp }}, {{ $json.workflow_id }}, {{ $json.processing_tier }}, {{ $json.enterprise_validation.compliance_status }}, {{ $json.final_decision.enterprise_approval_required }}",
+        "options": {}
+      },
+      "id": "enterprise-database-storage",
+      "name": "Enterprise Database Storage",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [1780, 300]
+    },
+    {
+      "parameters": {
+        "fromEmail": "enterprise@mortgagecompany.com",
+        "toEmail": "={{ $json.borrower_info.email }}",
+        "subject": "Enterprise Loan Application Decision - {{ $json.final_decision.decision }}",
+        "message": "Dear {{ $json.borrower_info.name }},\n\nYour enterprise loan application ({{ $json.loan_id }}) has been {{ $json.final_decision.decision.toLowerCase() }}.\n\n{% if $json.final_decision.decision === 'APPROVED' %}\nCongratulations! Your loan has been approved with the following terms:\n- Interest Rate: {{ $json.final_decision.loan_terms.interest_rate }}%\n- Loan Term: {{ $json.final_decision.loan_terms.loan_term }} years\n- Monthly Payment: ${{ $json.final_decision.loan_terms.monthly_payment }}\n- Down Payment: ${{ $json.final_decision.loan_terms.down_payment }}\n\nEnterprise Processing Details:\n- Processing Tier: {{ $json.processing_tier }}\n- Compliance Status: {{ $json.enterprise_validation.compliance_status }}\n- Risk Level: {{ $json.enterprise_risk_factors.credit_risk }}\n\nNext Steps:\n{% for step in $json.final_decision.next_steps %}\n- {{ step }}\n{% endfor %}\n\n{% if $json.final_decision.enterprise_approval_required %}\nNote: This loan requires additional enterprise approval due to risk factors.\n{% endif %}\n{% else %}\nWe regret to inform you that your loan application has been rejected.\n\nReason: {{ $json.final_decision.reasoning }}\n\nEnterprise Analysis:\n- Risk Level: {{ $json.enterprise_risk_factors.credit_risk }}\n- Compliance Status: {{ $json.enterprise_validation.compliance_status }}\n- Property Assessment: {{ $json.enterprise_risk_factors.property_risk }}\n\nIf you have any questions or would like to discuss this decision, please contact our enterprise loan department.\n{% endif %}\n\nThank you for choosing our enterprise services.\n\nBest regards,\nEnterprise Mortgage Team",
+        "options": {}
+      },
+      "id": "enterprise-email-notification",
+      "name": "Enterprise Email Notification",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [2000, 200]
+    },
+    {
+      "parameters": {
+        "channel": "#enterprise-loan-decisions",
+        "text": "🏢 *Enterprise Loan Application Decision*\n\n*Loan ID:* {{ $json.loan_id }}\n*Borrower:* {{ $json.borrower_info.name }}\n*Decision:* {{ $json.final_decision.decision }}\n*Confidence:* {{ $json.final_decision.confidence }}%\n*Amount:* ${{ $json.property_info.loan_amount }}\n*Property:* {{ $json.property_info.address }}\n\n*Enterprise Analysis:*\n• Processing Tier: {{ $json.processing_tier }}\n• Risk Level: {{ $json.enterprise_risk_factors.credit_risk }}\n• Compliance: {{ $json.enterprise_validation.compliance_status }}\n• Property Risk: {{ $json.enterprise_risk_factors.property_risk }}\n\n*Reasoning:* {{ $json.final_decision.reasoning }}\n\n*Processing Time:* {{ Math.round($json.processing_time / 1000) }}s\n*Workflow ID:* {{ $json.workflow_id }}\n\n{% if $json.final_decision.enterprise_approval_required %}⚠️ *Enterprise Approval Required*{% endif %}",
+        "otherOptions": {}
+      },
+      "id": "enterprise-slack-notification",
+      "name": "Enterprise Slack Notification",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.1,
+      "position": [2000, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"status\": \"success\",\n  \"message\": \"Enterprise loan application processed successfully\",\n  \"loan_id\": \"{{ $json.loan_id }}\",\n  \"decision\": \"{{ $json.final_decision.decision }}\",\n  \"confidence\": {{ $json.final_decision.confidence }},\n  \"processing_time\": {{ $json.processing_time }},\n  \"workflow_id\": \"{{ $json.workflow_id }}\",\n  \"processing_tier\": \"{{ $json.processing_tier }}\",\n  \"compliance_status\": \"{{ $json.enterprise_validation.compliance_status }}\",\n  \"enterprise_approval_required\": {{ $json.final_decision.enterprise_approval_required }},\n  \"timestamp\": \"{{ $json.processing_timestamp }}\"\n}",
+        "options": {}
+      },
+      "id": "enterprise-webhook-response",
+      "name": "Enterprise Webhook Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2220, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"status\": \"error\",\n  \"message\": \"Enterprise loan application validation failed\",\n  \"errors\": {{ JSON.stringify($json.errors) }},\n  \"timestamp\": \"{{ new Date().toISOString() }}\"\n}",
+        "options": {}
+      },
+      "id": "enterprise-validation-error-response",
+      "name": "Enterprise Validation Error Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [900, 500]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"status\": \"error\",\n  \"message\": \"Enterprise loan application rejected\",\n  \"loan_id\": \"{{ $json.loan_id }}\",\n  \"decision\": \"{{ $json.final_decision.decision }}\",\n  \"reasoning\": \"{{ $json.final_decision.reasoning }}\",\n  \"enterprise_analysis\": {\n    \"risk_level\": \"{{ $json.enterprise_risk_factors.credit_risk }}\",\n    \"compliance_status\": \"{{ $json.enterprise_validation.compliance_status }}\",\n    \"property_risk\": \"{{ $json.enterprise_risk_factors.property_risk }}\"\n  },\n  \"timestamp\": \"{{ $json.processing_timestamp }}\"\n}",
+        "options": {}
+      },
+      "id": "enterprise-rejection-response",
+      "name": "Enterprise Rejection Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1780, 500]
+    }
+  ],
+  "connections": {
+    "Enterprise Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Enterprise Validation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enterprise Validation": {
+      "main": [
+        [
+          {
+            "node": "Validation Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validation Check": {
+      "main": [
+        [
+          {
+            "node": "Document Processing Agent",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Enterprise Credit Check",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Enterprise Property Valuation",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Enterprise Compliance Check",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Enterprise Validation Error Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Document Processing Agent": {
+      "main": [
+        [
+          {
+            "node": "Enterprise Agentic Processing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enterprise Agentic Processing": {
+      "main": [
+        [
+          {
+            "node": "Enterprise Decision Processing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enterprise Credit Check": {
+      "main": [
+        [
+          {
+            "node": "Enterprise Decision Processing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enterprise Property Valuation": {
+      "main": [
+        [
+          {
+            "node": "Enterprise Decision Processing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enterprise Compliance Check": {
+      "main": [
+        [
+          {
+            "node": "Enterprise Decision Processing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enterprise Decision Processing": {
+      "main": [
+        [
+          {
+            "node": "Enterprise Decision Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enterprise Decision Check": {
+      "main": [
+        [
+          {
+            "node": "Enterprise Database Storage",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Enterprise Rejection Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enterprise Database Storage": {
+      "main": [
+        [
+          {
+            "node": "Enterprise Email Notification",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Enterprise Slack Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enterprise Email Notification": {
+      "main": [
+        [
+          {
+            "node": "Enterprise Webhook Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enterprise Slack Notification": {
+      "main": [
+        [
+          {
+            "node": "Enterprise Webhook Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "createdAt": "2024-01-15T10:00:00.000Z",
+      "updatedAt": "2024-01-15T10:00:00.000Z",
+      "id": "enterprise-loan-processing",
+      "name": "Enterprise Loan Processing"
+    }
+  ],
+  "triggerCount": 1,
+  "updatedAt": "2024-01-15T10:00:00.000Z",
+  "versionId": "1"
+}
