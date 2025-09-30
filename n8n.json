@@ -159,6 +159,10 @@
               {
                 "name": "Content-Type",
                 "value": "application/json"
+              },
+              {
+                "name": "ngrok-skip-browser-warning",
+                "value": "true"
               }
             ]
           },
