@@ -259,5 +259,16 @@
         ]
       ]
     }
-  }
+  },
+  "active": false,
+  "id": "enterprise-loan-workflow-001",
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "pinData": {},
+  "versionId": "1"
 }
