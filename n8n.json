@@ -327,11 +327,6 @@
               "node": "Document Processing Agent (OpenAI)",
               "type": "main",
               "index": 0
-            },
-            {
-              "node": "Bedrock Document Processor",
-              "type": "main",
-              "index": 0
             }
           ],
           [
