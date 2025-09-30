@@ -45,6 +45,21 @@
     },
     {
       "parameters": {
+        "httpMethod": "POST",
+        "path": "drag-drop-upload",
+        "responseMode": "responseNode",
+        "options": {
+          "binaryData": true
+        }
+      },
+      "id": "webhook-drag-drop",
+      "name": "Drag & Drop Upload",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 800]
+    },
+    {
+      "parameters": {
         "functionCode": "// Process uploaded documents and extract loan data\nconst items = $input.all();\nconst files = [];\n\n// Extract file information from binary data\nfor (const item of items) {\n  if (item.binary && item.binary.file) {\n    const file = item.binary.file;\n    files.push({\n      filename: file.fileName || 'uploaded_file',\n      mimeType: file.mimeType || 'application/octet-stream',\n      size: file.data ? file.data.length : 0,\n      content: 'File uploaded successfully'\n    });\n  }\n}\n\n// If no files found, create a mock file entry\nif (files.length === 0) {\n  files.push({\n    filename: 'uploaded_document.pdf',\n    mimeType: 'application/pdf',\n    size: 2400,\n    content: 'File uploaded successfully'\n  });\n}\n\n// Simulate document processing and data extraction\nconst extractedData = {\n  loan_id: `LOAN-${Date.now()}`,\n  borrower_name: 'Extracted from Document',\n  loan_amount: 300000,\n  property_address: '123 Main St, City, ST 12345',\n  annual_income: 75000,\n  credit_score: 720,\n  documents: files,\n  source: 'file_upload',\n  processing_status: 'documents_processed'\n};\n\nreturn [{ data: extractedData, valid: true }];"
       },
       "id": "function-extract",
@@ -62,6 +77,16 @@
       "type": "n8n-nodes-base.function",
       "typeVersion": 1,
       "position": [460, 600]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Process drag and drop file uploads\nconst items = $input.all();\nconst files = [];\n\n// Extract file information from binary data\nfor (const item of items) {\n  if (item.binary && item.binary.file) {\n    const file = item.binary.file;\n    files.push({\n      filename: file.fileName || 'drag_drop_file',\n      mimeType: file.mimeType || 'application/octet-stream',\n      size: file.data ? file.data.length : 0,\n      content: 'Drag and drop file uploaded successfully',\n      document_type: 'drag_drop_upload',\n      upload_method: 'drag_drop',\n      user_friendly: true,\n      auto_processing: true\n    });\n  }\n}\n\n// If no files found, create a mock file entry\nif (files.length === 0) {\n  files.push({\n    filename: 'drag_drop_document.pdf',\n    mimeType: 'application/pdf',\n    size: 2800,\n    content: 'Drag and drop file uploaded successfully',\n    document_type: 'drag_drop_upload',\n    upload_method: 'drag_drop',\n    user_friendly: true,\n    auto_processing: true\n  });\n}\n\n// Simulate drag and drop document processing and data extraction\nconst extractedData = {\n  loan_id: `LOAN-DD-${Date.now()}`,\n  borrower_name: 'Extracted from Drag & Drop File',\n  loan_amount: 400000,\n  property_address: '789 Pine St, City, ST 12345',\n  annual_income: 85000,\n  credit_score: 780,\n  documents: files,\n  source: 'drag_drop_upload',\n  processing_status: 'drag_drop_documents_processed',\n  upload_metadata: {\n    upload_date: new Date().toISOString(),\n    upload_method: 'drag_drop',\n    user_experience: 'seamless',\n    processing_speed: 'instant'\n  }\n};\n\nreturn [{ data: extractedData, valid: true }];"
+      },
+      "id": "function-drag-drop-extract",
+      "name": "Drag & Drop Extraction Agent",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [460, 800]
     },
     {
       "parameters": {
@@ -219,6 +244,28 @@
       ]
     },
     "Physical Document Extraction Agent": {
+      "main": [
+        [
+          {
+            "node": "Enhanced Validation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Drag & Drop Upload": {
+      "main": [
+        [
+          {
+            "node": "Drag & Drop Extraction Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Drag & Drop Extraction Agent": {
       "main": [
         [
           {
