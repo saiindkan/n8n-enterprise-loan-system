@@ -152,7 +152,7 @@
       {
         "parameters": {
           "method": "POST",
-          "url": "http://localhost:11434/api/generate",
+          "url": "https://crocodiloid-mildly-robert.ngrok-free.dev/api/generate",
           "sendHeaders": true,
           "headerParameters": {
             "parameters": [
