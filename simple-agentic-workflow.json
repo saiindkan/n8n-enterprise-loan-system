@@ -15,7 +15,7 @@
     },
     {
       "parameters": {
-        "functionCode": "// Simple validation\nconst data = $json;\nconst errors = [];\n\nif (!data.loan_id) errors.push('Missing loan_id');\nif (!data.borrower_name) errors.push('Missing borrower_name');\nif (!data.loan_amount) errors.push('Missing loan_amount');\n\nif (errors.length > 0) {\n  return [{ valid: false, errors }];\n}\n\nreturn [{ valid: true, data }];"
+        "functionCode": "// Fixed validation - handle webhook data properly\nconst data = $json.body || $json; // Try body first, then direct\nconst errors = [];\n\nif (!data.loan_id) errors.push('Missing loan_id');\nif (!data.borrower_name) errors.push('Missing borrower_name');\nif (!data.loan_amount) errors.push('Missing loan_amount');\n\nif (errors.length > 0) {\n  return [{ valid: false, errors }];\n}\n\nreturn [{ valid: true, data }];"
       },
       "id": "function-1",
       "name": "Validation",
