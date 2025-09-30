@@ -107,17 +107,59 @@
         "credentials": {
           "openAiApi": { "id": "AZxvYth2OEvNcxia", "name": "OpenAi account" }
         }
-      },
-      {
-        "parameters": {
-          "functionCode": "// Parse OpenAI response and merge with existing data\nconst content = $json.choices?.[0]?.message?.content || '{}';\nlet documentResults = {};\ntry {\n  documentResults = JSON.parse(content);\n} catch (e) {\n  documentResults = {\n    document_results: {\n      total_documents: 1,\n      processed_documents: [{\n        document_id: 'DOC-1',\n        filename: 'processed_document',\n        document_type: 'loan_application',\n        status: 'processed',\n        confidence: 0.95,\n        extracted_data: {\n          borrower_name: 'AI Processed',\n          loan_amount: 300000\n        }\n      }],\n      processing_time: '1.2 seconds',\n      ai_confidence: 0.92\n    }\n  };\n}\n\nconst mergedData = {\n  ...$json.data,\n  document_results: documentResults.document_results || documentResults\n};\n\nreturn [{ json: { data: mergedData } }];"
-        },
-        "id": "a259456e-7a51-400b-8e19-bbe8718039dc",
-        "name": "Merge Document Results",
-        "type": "n8n-nodes-base.function",
-        "typeVersion": 1,
-        "position": [-160, -16]
-      },
+       },
+       {
+         "parameters": {
+           "method": "POST",
+           "url": "https://bedrock-runtime.us-east-1.amazonaws.com/model/anthropic.claude-3-haiku-20240307-v1:0/invoke",
+           "authentication": "predefinedCredentialType",
+           "nodeCredentialType": "aws",
+           "sendHeaders": true,
+           "headerParameters": {
+             "parameters": [
+               { "name": "Content-Type", "value": "application/json" },
+               { "name": "Accept", "value": "application/json" }
+             ]
+           },
+           "sendBody": true,
+           "bodyContentType": "json",
+           "specifyBody": "json",
+           "jsonBody": "={\n  \"anthropic_version\": \"bedrock-2023-05-31\",\n  \"max_tokens\": 500,\n  \"temperature\": 0.1,\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"You are a document processing AI agent using AWS Bedrock. Analyze these loan documents and extract key information. Return ONLY valid JSON with this structure: {\\\"bedrock_results\\\": {\\\"total_documents\\\": 1, \\\"processed_documents\\\": [{\\\"document_id\\\": \\\"DOC-BEDROCK-001\\\", \\\"filename\\\": \\\"processed_document\\\", \\\"document_type\\\": \\\"loan_application\\\", \\\"status\\\": \\\"processed\\\", \\\"confidence\\\": 0.95, \\\"extracted_data\\\": {...}}], \\\"processing_time\\\": \\\"1.5 seconds\\\", \\\"ai_confidence\\\": 0.90, \\\"model_used\\\": \\\"claude-3-haiku\\\"}}. Here is the loan data: {{ JSON.stringify($json.data) }}\"\n    }\n  ]\n}",
+           "options": {
+             "response": {
+               "response": { "neverError": true, "responseFormat": "json" }
+             }
+           }
+         },
+         "id": "bedrock-document-processor",
+         "name": "Bedrock Document Processor",
+         "type": "n8n-nodes-base.httpRequest",
+         "typeVersion": 4,
+         "position": [-384, 80],
+         "credentials": {
+           "aws": { "id": "aws-credentials", "name": "AWS Credentials" }
+         }
+       },
+       {
+         "parameters": {
+           "functionCode": "// Parse OpenAI response and merge with existing data\nconst content = $json.choices?.[0]?.message?.content || '{}';\nlet documentResults = {};\ntry {\n  documentResults = JSON.parse(content);\n} catch (e) {\n  documentResults = {\n    document_results: {\n      total_documents: 1,\n      processed_documents: [{\n        document_id: 'DOC-1',\n        filename: 'processed_document',\n        document_type: 'loan_application',\n        status: 'processed',\n        confidence: 0.95,\n        extracted_data: {\n          borrower_name: 'AI Processed',\n          loan_amount: 300000\n        }\n      }],\n      processing_time: '1.2 seconds',\n      ai_confidence: 0.92\n    }\n  };\n}\n\nconst mergedData = {\n  ...$json.data,\n  document_results: documentResults.document_results || documentResults\n};\n\nreturn [{ json: { data: mergedData } }];"
+         },
+         "id": "a259456e-7a51-400b-8e19-bbe8718039dc",
+         "name": "Merge Document Results",
+         "type": "n8n-nodes-base.function",
+         "typeVersion": 1,
+         "position": [-160, -16]
+       },
+       {
+         "parameters": {
+           "functionCode": "// Parse Bedrock response and merge with existing data\nconst content = $json.content?.[0]?.text || '{}';\nlet bedrockResults = {};\ntry {\n  bedrockResults = JSON.parse(content);\n} catch (e) {\n  bedrockResults = {\n    bedrock_results: {\n      total_documents: 1,\n      processed_documents: [{\n        document_id: 'DOC-BEDROCK-1',\n        filename: 'processed_document_bedrock',\n        document_type: 'loan_application',\n        status: 'processed',\n        confidence: 0.95,\n        extracted_data: {\n          borrower_name: 'Bedrock AI Processed',\n          loan_amount: 300000\n        }\n      }],\n      processing_time: '1.5 seconds',\n      ai_confidence: 0.90,\n      model_used: 'claude-3-haiku'\n    }\n  };\n}\n\nconst mergedData = {\n  ...$json.data,\n  bedrock_results: bedrockResults.bedrock_results || bedrockResults\n};\n\nreturn [{ json: { data: mergedData } }];"
+         },
+         "id": "merge-bedrock-results",
+         "name": "Merge Bedrock Results",
+         "type": "n8n-nodes-base.function",
+         "typeVersion": 1,
+         "position": [-160, 80]
+       },
       {
         "parameters": {
           "responseBody": "={{ $json[\"data\"] }}",
@@ -161,18 +203,27 @@
       "Enhanced Validation": {
         "main": [[{ "node": "If Valid", "type": "main", "index": 0 }]]
       },
-      "If Valid": {
-        "main": [
-          [{ "node": "Document Processing Agent (OpenAI)", "type": "main", "index": 0 }],
-          [{ "node": "Error Response", "type": "main", "index": 0 }]
-        ]
-      },
-      "Document Processing Agent (OpenAI)": {
-        "main": [[{ "node": "Merge Document Results", "type": "main", "index": 0 }]]
-      },
-      "Merge Document Results": {
-        "main": [[{ "node": "Success Response", "type": "main", "index": 0 }]]
-      }
+       "If Valid": {
+         "main": [
+           [
+             { "node": "Document Processing Agent (OpenAI)", "type": "main", "index": 0 },
+             { "node": "Bedrock Document Processor", "type": "main", "index": 0 }
+           ],
+           [{ "node": "Error Response", "type": "main", "index": 0 }]
+         ]
+       },
+       "Document Processing Agent (OpenAI)": {
+         "main": [[{ "node": "Merge Document Results", "type": "main", "index": 0 }]]
+       },
+       "Bedrock Document Processor": {
+         "main": [[{ "node": "Merge Bedrock Results", "type": "main", "index": 0 }]]
+       },
+       "Merge Document Results": {
+         "main": [[{ "node": "Success Response", "type": "main", "index": 0 }]]
+       },
+       "Merge Bedrock Results": {
+         "main": [[{ "node": "Success Response", "type": "main", "index": 0 }]]
+       }
     },
     "active": true,
     "settings": { "executionOrder": "v1" },
