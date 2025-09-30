@@ -30,6 +30,21 @@
     },
     {
       "parameters": {
+        "httpMethod": "POST",
+        "path": "physical-file-upload",
+        "responseMode": "responseNode",
+        "options": {
+          "binaryData": true
+        }
+      },
+      "id": "webhook-physical-upload",
+      "name": "Physical File Upload",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 600]
+    },
+    {
+      "parameters": {
         "functionCode": "// Process uploaded documents and extract loan data\nconst items = $input.all();\nconst files = [];\n\n// Extract file information from binary data\nfor (const item of items) {\n  if (item.binary && item.binary.file) {\n    const file = item.binary.file;\n    files.push({\n      filename: file.fileName || 'uploaded_file',\n      mimeType: file.mimeType || 'application/octet-stream',\n      size: file.data ? file.data.length : 0,\n      content: 'File uploaded successfully'\n    });\n  }\n}\n\n// If no files found, create a mock file entry\nif (files.length === 0) {\n  files.push({\n    filename: 'uploaded_document.pdf',\n    mimeType: 'application/pdf',\n    size: 2400,\n    content: 'File uploaded successfully'\n  });\n}\n\n// Simulate document processing and data extraction\nconst extractedData = {\n  loan_id: `LOAN-${Date.now()}`,\n  borrower_name: 'Extracted from Document',\n  loan_amount: 300000,\n  property_address: '123 Main St, City, ST 12345',\n  annual_income: 75000,\n  credit_score: 720,\n  documents: files,\n  source: 'file_upload',\n  processing_status: 'documents_processed'\n};\n\nreturn [{ data: extractedData, valid: true }];"
       },
       "id": "function-extract",
@@ -37,6 +52,16 @@
       "type": "n8n-nodes-base.function",
       "typeVersion": 1,
       "position": [460, 400]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Process physical file uploads (scanned documents, photos, etc.)\nconst items = $input.all();\nconst files = [];\n\n// Extract file information from binary data\nfor (const item of items) {\n  if (item.binary && item.binary.file) {\n    const file = item.binary.file;\n    files.push({\n      filename: file.fileName || 'physical_document',\n      mimeType: file.mimeType || 'application/octet-stream',\n      size: file.data ? file.data.length : 0,\n      content: 'Physical document uploaded successfully',\n      document_type: 'physical_upload',\n      scan_quality: 'high',\n      ocr_ready: true\n    });\n  }\n}\n\n// If no files found, create a mock file entry\nif (files.length === 0) {\n  files.push({\n    filename: 'physical_document.pdf',\n    mimeType: 'application/pdf',\n    size: 3200,\n    content: 'Physical document uploaded successfully',\n    document_type: 'physical_upload',\n    scan_quality: 'high',\n    ocr_ready: true\n  });\n}\n\n// Simulate physical document processing and data extraction\nconst extractedData = {\n  loan_id: `LOAN-PHYS-${Date.now()}`,\n  borrower_name: 'Extracted from Physical Document',\n  loan_amount: 350000,\n  property_address: '456 Oak St, City, ST 12345',\n  annual_income: 80000,\n  credit_score: 750,\n  documents: files,\n  source: 'physical_upload',\n  processing_status: 'physical_documents_processed',\n  scan_metadata: {\n    scan_date: new Date().toISOString(),\n    scan_method: 'mobile_app',\n    quality_score: 0.95\n  }\n};\n\nreturn [{ data: extractedData, valid: true }];"
+      },
+      "id": "function-physical-extract",
+      "name": "Physical Document Extraction Agent",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [460, 600]
     },
     {
       "parameters": {
@@ -172,6 +197,28 @@
       ]
     },
     "Document Extraction Agent": {
+      "main": [
+        [
+          {
+            "node": "Enhanced Validation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Physical File Upload": {
+      "main": [
+        [
+          {
+            "node": "Physical Document Extraction Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Physical Document Extraction Agent": {
       "main": [
         [
           {
