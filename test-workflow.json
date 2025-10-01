@@ -1,0 +1,28 @@
+{
+  "loan_id": "TEST-LOAN-001",
+  "borrower_name": "John Smith",
+  "loan_amount": 350000,
+  "property_address": "456 Oak Street, Austin, TX 78701",
+  "annual_income": 95000,
+  "credit_score": 750,
+  "employment_status": "Full-time",
+  "loan_purpose": "Primary Residence Purchase",
+  "loan_term": 30,
+  "property_value": 450000,
+  "documents": [
+    {
+      "filename": "pay_stub.pdf",
+      "mimeType": "application/pdf",
+      "size": 2048,
+      "content": "Pay stub showing $95,000 annual salary"
+    },
+    {
+      "filename": "tax_return.pdf", 
+      "mimeType": "application/pdf",
+      "size": 4096,
+      "content": "Tax return showing income verification"
+    }
+  ],
+  "source": "test_data",
+  "processing_status": "ready_for_analysis"
+}
