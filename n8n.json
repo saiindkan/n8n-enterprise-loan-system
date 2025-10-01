@@ -664,7 +664,18 @@
         "main": [
           [
             {
-              "node": "Bedrock Decision Making Agent",
+              "node": "OpenAI Decision Making Agent",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "OpenAI Decision Making Agent": {
+        "main": [
+          [
+            {
+              "node": "Merge Decision Results",
               "type": "main",
               "index": 0
             }
