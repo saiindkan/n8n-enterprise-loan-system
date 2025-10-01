@@ -274,50 +274,6 @@
       {
         "parameters": {
           "method": "POST",
-        "url": "https://bedrock-runtime.us-east-1.amazonaws.com/model/amazon.titan-text-express-v1/invoke",
-        "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "aws",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Content-Type",
-              "value": "application/json"
-            },
-            {
-              "name": "Accept",
-              "value": "application/json"
-            },
-            {
-              "name": "X-Amz-Content-Sha256",
-              "value": "UNSIGNED-PAYLOAD"
-            }
-          ]
-        },
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "{\n  \"inputText\": \"You are a Senior Compliance Officer AI agent using Amazon Titan. Analyze loan documents for regulatory compliance with TRID, HMDA, ECOA, CRA, FCRA, GLBA, and AML regulations. Provide detailed compliance analysis with specific regulation references. Return ONLY valid JSON with compliance_results structure.\",\n  \"textGenerationConfig\": {\n    \"maxTokenCount\": 800,\n    \"temperature\": 0.05,\n    \"topP\": 0.9\n  }\n}",
-          "options": {
-            "response": {
-              "response": {
-                "neverError": true,
-                "responseFormat": "json"
-              }
-            }
-          }
-        },
-        "id": "bedrock-compliance-agent-001",
-        "name": "Bedrock Compliance Agent",
-        "type": "n8n-nodes-base.httpRequest",
-        "typeVersion": 4,
-        "position": [
-          1776,
-          -48
-        ]
-      },
-      {
-        "parameters": {
-          "method": "POST",
           "url": "https://httpbin.org/post",
           "authentication": "none",
           "sendHeaders": false,
