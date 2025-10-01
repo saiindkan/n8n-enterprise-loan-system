@@ -313,13 +313,7 @@
         "position": [
           1776,
           -48
-        ],
-        "credentials": {
-          "aws": {
-            "id": "DVs7dBmJBeDHSSO2",
-            "name": "AWS account"
-          }
-        }
+        ]
       },
       {
         "parameters": {
