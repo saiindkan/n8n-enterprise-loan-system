@@ -560,27 +560,7 @@
         "main": [
           [
             {
-              "node": "Document Processing Agent (OpenAI)",
-              "type": "main",
-              "index": 0
-            },
-            {
-              "node": "Ollama Document Processor",
-              "type": "main",
-              "index": 0
-            },
-            {
-              "node": "Bedrock Compliance Agent",
-              "type": "main",
-              "index": 0
-            },
-            {
-              "node": "Bedrock Risk Assessment Agent",
-              "type": "main",
-              "index": 0
-            },
-            {
-              "node": "Bedrock Decision Making Agent",
+              "node": "Bedrock Document Processor",
               "type": "main",
               "index": 0
             }
@@ -642,7 +622,7 @@
         "main": [
           [
             {
-              "node": "Success Response",
+              "node": "Bedrock Compliance Agent",
               "type": "main",
               "index": 0
             }
@@ -697,7 +677,7 @@
         "main": [
           [
             {
-              "node": "Success Response",
+              "node": "Bedrock Risk Assessment Agent",
               "type": "main",
               "index": 0
             }
@@ -708,7 +688,7 @@
         "main": [
           [
             {
-              "node": "Success Response",
+              "node": "Bedrock Decision Making Agent",
               "type": "main",
               "index": 0
             }
