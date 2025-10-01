@@ -600,15 +600,7 @@
         ]
       },
       "Merge Document Results": {
-        "main": [
-          [
-            {
-              "node": "Success Response",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
+        "main": []
       },
       "Merge Bedrock Results": {
         "main": [
@@ -622,15 +614,7 @@
         ]
       },
       "Merge Ollama Results": {
-        "main": [
-          [
-            {
-              "node": "Success Response",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
+        "main": []
       },
       "Bedrock Compliance Agent": {
         "main": [
