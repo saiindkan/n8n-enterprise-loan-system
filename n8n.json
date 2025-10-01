@@ -552,7 +552,7 @@
         "main": [
           [
             {
-              "node": "Bedrock Document Processor",
+              "node": "Bedrock Compliance Agent",
               "type": "main",
               "index": 0
             }
@@ -603,15 +603,7 @@
         "main": []
       },
       "Merge Bedrock Results": {
-        "main": [
-          [
-            {
-              "node": "Bedrock Compliance Agent",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
+        "main": []
       },
       "Merge Ollama Results": {
         "main": []
