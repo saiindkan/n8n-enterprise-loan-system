@@ -275,7 +275,7 @@
       {
         "parameters": {
           "method": "POST",
-        "url": "https://bedrock-runtime.us-east-1.amazonaws.com/model/anthropic.claude-3-5-sonnet-20241022-v2:0/invoke",
+        "url": "https://bedrock-runtime.us-east-1.amazonaws.com/model/amazon.titan-text-express-v1/invoke",
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "aws",
         "sendHeaders": true,
@@ -297,7 +297,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "{\n  \"anthropic_version\": \"bedrock-2023-05-31\",\n  \"max_tokens\": 800,\n  \"temperature\": 0.05,\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"You are a Senior Compliance Officer AI agent using Claude-3-Sonnet. Analyze loan documents for regulatory compliance with TRID, HMDA, ECOA, CRA, FCRA, GLBA, and AML regulations. Provide detailed compliance analysis with specific regulation references. Return ONLY valid JSON with compliance_results structure.\"\n    }\n  ]\n}",
+        "jsonBody": "{\n  \"inputText\": \"You are a Senior Compliance Officer AI agent using Amazon Titan. Analyze loan documents for regulatory compliance with TRID, HMDA, ECOA, CRA, FCRA, GLBA, and AML regulations. Provide detailed compliance analysis with specific regulation references. Return ONLY valid JSON with compliance_results structure.\",\n  \"textGenerationConfig\": {\n    \"maxTokenCount\": 800,\n    \"temperature\": 0.05,\n    \"topP\": 0.9\n  }\n}",
           "options": {
             "response": {
               "response": {
@@ -325,7 +325,7 @@
       {
         "parameters": {
           "method": "POST",
-        "url": "https://bedrock-runtime.us-east-1.amazonaws.com/model/anthropic.claude-3-opus-20240229-v1:0/invoke",
+        "url": "https://bedrock-runtime.us-east-1.amazonaws.com/model/meta.llama3-8b-instruct-v1:0/invoke",
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "aws",
         "sendHeaders": true,
@@ -347,7 +347,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "{\n  \"anthropic_version\": \"bedrock-2023-05-31\",\n  \"max_tokens\": 1000,\n  \"temperature\": 0.1,\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"You are a Senior Risk Analyst AI agent using Claude-3-Opus. Perform comprehensive risk analysis including credit risk modeling, market risk assessment, and operational risk evaluation. Calculate sophisticated risk scores, stress test scenarios, and provide detailed risk recommendations. Return ONLY valid JSON with risk_results structure.\"\n    }\n  ]\n}",
+        "jsonBody": "{\n  \"prompt\": \"You are a Senior Risk Analyst AI agent using Meta Llama. Perform comprehensive risk analysis including credit risk modeling, market risk assessment, and operational risk evaluation. Calculate sophisticated risk scores, stress test scenarios, and provide detailed risk recommendations. Return ONLY valid JSON with risk_results structure.\",\n  \"max_gen_len\": 1000,\n  \"temperature\": 0.1,\n  \"top_p\": 0.9\n}",
           "options": {
             "response": {
               "response": {
@@ -375,29 +375,21 @@
       {
         "parameters": {
           "method": "POST",
-        "url": "https://bedrock-runtime.us-east-1.amazonaws.com/model/anthropic.claude-3-opus-20240229-v1:0/invoke",
+        "url": "https://api.openai.com/v1/chat/completions",
         "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "aws",
+        "nodeCredentialType": "openAiApi",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
             {
               "name": "Content-Type",
               "value": "application/json"
-            },
-            {
-              "name": "Accept",
-              "value": "application/json"
-            },
-            {
-              "name": "X-Amz-Content-Sha256",
-              "value": "UNSIGNED-PAYLOAD"
             }
           ]
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "{\n  \"anthropic_version\": \"bedrock-2023-05-31\",\n  \"max_tokens\": 1200,\n  \"temperature\": 0.2,\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"You are a Senior Loan Officer AI agent using Claude-3-Opus. Based on document processing, compliance checks, and risk assessment results, make a final loan approval or denial decision with detailed reasoning, terms, and conditions. Consider all factors including regulatory compliance, risk profile, and business objectives. Return ONLY valid JSON with decision_results structure.\"\n    }\n  ]\n}",
+        "jsonBody": "{\n  \"model\": \"gpt-4o\",\n  \"max_tokens\": 1200,\n  \"temperature\": 0.2,\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"You are a Senior Loan Officer AI agent using GPT-4o. Make strategic loan decisions based on comprehensive analysis.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"Based on document processing, compliance checks, and risk assessment results, make a final loan approval or denial decision with detailed reasoning, terms, and conditions. Consider all factors including regulatory compliance, risk profile, and business objectives. Return ONLY valid JSON with decision_results structure.\"\n    }\n  ]\n}",
           "options": {
             "response": {
               "response": {
@@ -408,7 +400,7 @@
           }
         },
         "id": "bedrock-decision-agent-001",
-        "name": "Bedrock Decision Making Agent",
+        "name": "OpenAI Decision Making Agent",
         "type": "n8n-nodes-base.httpRequest",
         "typeVersion": 4,
         "position": [
@@ -416,9 +408,9 @@
           144
         ],
         "credentials": {
-          "aws": {
-            "id": "DVs7dBmJBeDHSSO2",
-            "name": "AWS account"
+          "openAiApi": {
+            "id": "AZxvYth2OEvNcxia",
+            "name": "OpenAi account"
           }
         }
       },
