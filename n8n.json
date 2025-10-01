@@ -555,17 +555,6 @@
           ]
         ]
       },
-      "Bedrock Decision Making Agent": {
-        "main": [
-          [
-            {
-              "node": "Merge Decision Results",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
-      },
       "Merge Compliance Results": {
         "main": [
           [
