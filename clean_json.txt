@@ -1,0 +1,15 @@
+{
+  "model": "gpt-4o",
+  "temperature": 0.1,
+  "max_tokens": 500,
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are a document processing AI agent. Analyze loan documents and extract key information. Return ONLY valid JSON."
+    },
+    {
+      "role": "user",
+      "content": "Process these loan documents: {{ JSON.stringify($json.data) }}"
+    }
+  ]
+}
