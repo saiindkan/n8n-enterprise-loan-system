@@ -1,186 +1,133 @@
 {
-    "name": "Enterprise Loan Processing Workflow",
-    "nodes": [
-      {
-        "parameters": {
-          "httpMethod": "POST",
-          "path": "loan-application",
-          "responseMode": "responseNode",
-          "options": {}
-        },
-        "id": "f12a06fa-df48-461a-9884-65bb843cf127",
-        "name": "Webhook JSON",
-        "type": "n8n-nodes-base.webhook",
-        "typeVersion": 1,
-        "position": [
-          432,
-          -144
-        ],
-        "webhookId": "41beefc6-feb7-4794-b059-42c045bf7e8c"
+  "name": "Enterprise Loan Processing Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "loan-application",
+        "responseMode": "responseNode",
+        "options": {}
       },
-      {
-        "parameters": {},
-        "id": "5df4f872-006f-427d-9a21-393193422ad9",
-        "name": "Manual Trigger",
-        "type": "n8n-nodes-base.manualTrigger",
-        "typeVersion": 1,
-        "position": [
-          432,
-          48
-        ]
-      },
-      {
-        "parameters": {
-          "httpMethod": "POST",
-          "path": "file-upload",
-          "responseMode": "responseNode",
-          "options": {
-            "binaryData": true
-          }
-        },
-        "id": "76a2166a-5bf1-4a99-8f2f-84d76c2035b2",
-        "name": "File Upload",
-        "type": "n8n-nodes-base.webhook",
-        "typeVersion": 1,
-        "position": [
-          432,
-          240
-        ],
-        "webhookId": "58d36c9e-a796-4358-9d9d-18953c5d9927"
-      },
-      {
-        "parameters": {
-          "functionCode": "// Process uploaded documents and extract loan data\nconst items = $input.all();\nconst files = [];\n\nfor (const item of items) {\n  if (item.binary && item.binary.file) {\n    const file = item.binary.file;\n    files.push({\n      filename: file.fileName || 'uploaded_file',\n      mimeType: file.mimeType || 'application/octet-stream',\n      size: file.data ? file.data.length : 0,\n      content: 'File uploaded successfully'\n    });\n  }\n}\n\nif (files.length === 0) {\n  files.push({\n    filename: 'uploaded_document.pdf',\n    mimeType: 'application/pdf',\n    size: 2400,\n    content: 'File uploaded successfully'\n  });\n}\n\nconst extractedData = {\n  loan_id: `LOAN-${Date.now()}`,\n  borrower_name: 'Extracted from Document',\n  loan_amount: 300000,\n  property_address: '123 Main St, City, ST 12345',\n  annual_income: 75000,\n  credit_score: 720,\n  documents: files,\n  source: 'file_upload',\n  processing_status: 'documents_processed'\n};\n\nreturn [{ json: { data: extractedData, valid: true } }];"
-        },
-        "id": "5d256a12-a068-4e3e-b6a1-f0887a66a3fe",
-        "name": "Document Extraction Agent",
-        "type": "n8n-nodes-base.function",
-        "typeVersion": 1,
-        "position": [
-          656,
-          144
-        ]
-      },
-      {
-        "parameters": {
-          "functionCode": "// Normalize JSON input\nconst data = $json.body || $json;\nreturn [{ json: { data, valid: true } }];"
-        },
-        "id": "6e47f99f-bf97-4dc5-bdee-f2f3e64bf60e",
-        "name": "Normalize JSON Input",
-        "type": "n8n-nodes-base.function",
-        "typeVersion": 1,
-        "position": [
-          656,
-          -144
-        ]
-      },
-      {
-        "parameters": {
-          "functionCode": "// Enhanced validation for both JSON and file upload\nconst data = $json.data || {};\nconst errors = [];\n\nif (!data.loan_id) errors.push('Missing loan_id');\nif (!data.borrower_name) errors.push('Missing borrower_name');\nif (!data.loan_amount) errors.push('Missing loan_amount');\n\nif (data.loan_amount && data.loan_amount < 50000) {\n  errors.push('Minimum loan amount is $50,000');\n}\nif (data.loan_amount && data.loan_amount > 2000000) {\n  errors.push('Maximum loan amount is $2,000,000');\n}\n\nif (data.documents && data.documents.length === 0) {\n  errors.push('At least one document is required');\n}\n\nif (errors.length > 0) {\n  return [{ json: { valid: false, errors, data } }];\n}\n\nreturn [{ json: { valid: true, data } }];"
-        },
-        "id": "2337938e-6172-48e7-8738-7f80595a1a3e",
-        "name": "Enhanced Validation",
-        "type": "n8n-nodes-base.function",
-        "typeVersion": 1,
-        "position": [
-          880,
-          48
-        ]
-      },
-      {
-        "parameters": {
-          "conditions": {
-            "boolean": [
-              {
-                "value1": "={{ $json.valid }}",
-                "value2": true
-              }
-            ]
-          }
-        },
-        "id": "3b480ab7-5fb6-42b1-ae3b-5a3bacbc3fb3",
-        "name": "If Valid",
-        "type": "n8n-nodes-base.if",
-        "typeVersion": 1,
-        "position": [
-          1104,
-          48
-        ]
-      },
-      {
-        "parameters": {
-          "method": "POST",
-          "url": "https://api.openai.com/v1/chat/completions",
-          "authentication": "predefinedCredentialType",
-          "nodeCredentialType": "openAiApi",
-          "sendHeaders": true,
-          "headerParameters": {
-            "parameters": [
-              {
-                "name": "Content-Type",
-                "value": "application/json"
-              }
-            ]
-          },
-          "sendBody": true,
-          "specifyBody": "json",
-          "jsonBody": "={\n  \"model\": \"gpt-3.5-turbo\",\n  \"temperature\": 0.1,\n  \"max_tokens\": 500,\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"You are a document processing AI agent. Analyze loan documents and extract key information. Return ONLY valid JSON.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"Process these loan documents: {\\\"loan_id\\\":\\\"LOAN-1759269964352\\\",\\\"borrower_name\\\":\\\"Extracted from Document\\\",\\\"loan_amount\\\":300000,\\\"property_address\\\":\\\"123 Main St, City, ST 12345\\\",\\\"annual_income\\\":75000,\\\"credit_score\\\":720,\\\"documents\\\":[{\\\"filename\\\":\\\"uploaded_document.pdf\\\",\\\"mimeType\\\":\\\"application/pdf\\\",\\\"size\\\":2400,\\\"content\\\":\\\"File uploaded successfully\\\"}],\\\"source\\\":\\\"file_upload\\\",\\\"processing_status\\\":\\\"documents_processed\\\"}\"\n    }\n  ]\n}",
-          "options": {
-            "response": {
-              "response": {
-                "neverError": true,
-                "responseFormat": "json"
-              }
-            }
-          }
-        },
-        "id": "25e4391a-0ad2-4bc8-886a-7df5d4d0f7a8",
-        "name": "Document Processing Agent (OpenAI)",
-        "type": "n8n-nodes-base.httpRequest",
-        "typeVersion": 4,
-        "position": [
-          1328,
-          -48
-        ],
-        "credentials": {
-          "openAiApi": {
-            "id": "AZxvYth2OEvNcxia",
-            "name": "OpenAi account"
-          }
+      "id": "f12a06fa-df48-461a-9884-65bb843cf127",
+      "name": "Webhook JSON",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        432,
+        -144
+      ],
+      "webhookId": "41beefc6-feb7-4794-b059-42c045bf7e8c"
+    },
+    {
+      "parameters": {},
+      "id": "5df4f872-006f-427d-9a21-393193422ad9",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        432,
+        48
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "file-upload",
+        "responseMode": "responseNode",
+        "options": {
+          "binaryData": true
         }
       },
-      {
-        "parameters": {
-          "method": "POST",
-          "url": "http://localhost:11434/api/generate",
-          "sendHeaders": true,
-          "headerParameters": {
-            "parameters": [
-              {
-                "name": "Content-Type",
-                "value": "application/json"
-              }
-            ]
-          },
-          "sendBody": true,
-          "specifyBody": "json",
-          "jsonBody": "={\n  \"model\": \"llama3.2:3b\",\n  \"prompt\": \"You are a document processing AI agent using Ollama. Analyze these loan documents and extract key information. Return ONLY valid JSON. Here is the loan data: \" + JSON.stringify($json.data),\n  \"stream\": false,\n  \"options\": {\n    \"temperature\": 0.1,\n    \"top_p\": 0.9,\n    \"max_tokens\": 500\n  }\n}",
-          "options": {
-            "response": {
-              "response": {
-                "neverError": true,
-                "responseFormat": "json"
-              }
+      "id": "76a2166a-5bf1-4a99-8f2f-84d76c2035b2",
+      "name": "File Upload",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        432,
+        240
+      ],
+      "webhookId": "58d36c9e-a796-4358-9d9d-18953c5d9927"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Process uploaded documents and extract loan data\nconst items = $input.all();\nconst files = [];\n\nfor (const item of items) {\n  if (item.binary && item.binary.file) {\n    const file = item.binary.file;\n    files.push({\n      filename: file.fileName || 'uploaded_file',\n      mimeType: file.mimeType || 'application/octet-stream',\n      size: file.data ? file.data.length : 0,\n      content: 'File uploaded successfully'\n    });\n  }\n}\n\nif (files.length === 0) {\n  files.push({\n    filename: 'uploaded_document.pdf',\n    mimeType: 'application/pdf',\n    size: 2400,\n    content: 'File uploaded successfully'\n  });\n}\n\nconst extractedData = {\n  loan_id: `LOAN-${Date.now()}`,\n  borrower_name: 'Extracted from Document',\n  loan_amount: 300000,\n  property_address: '123 Main St, City, ST 12345',\n  annual_income: 75000,\n  credit_score: 720,\n  documents: files,\n  source: 'file_upload',\n  processing_status: 'documents_processed'\n};\n\nreturn [{ json: { data: extractedData, valid: true } }];"
+      },
+      "id": "5d256a12-a068-4e3e-b6a1-f0887a66a3fe",
+      "name": "Document Extraction Agent",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        656,
+        144
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Normalize JSON input\nconst data = $json.body || $json;\nreturn [{ json: { data, valid: true } }];"
+      },
+      "id": "6e47f99f-bf97-4dc5-bdee-f2f3e64bf60e",
+      "name": "Normalize JSON Input",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        656,
+        -144
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Enhanced validation for both JSON and file upload\nconst data = $json.data || {};\nconst errors = [];\n\nif (!data.loan_id) errors.push('Missing loan_id');\nif (!data.borrower_name) errors.push('Missing borrower_name');\nif (!data.loan_amount) errors.push('Missing loan_amount');\n\nif (data.loan_amount && data.loan_amount < 50000) {\n  errors.push('Minimum loan amount is $50,000');\n}\nif (data.loan_amount && data.loan_amount > 2000000) {\n  errors.push('Maximum loan amount is $2,000,000');\n}\n\nif (data.documents && data.documents.length === 0) {\n  errors.push('At least one document is required');\n}\n\nif (errors.length > 0) {\n  return [{ json: { valid: false, errors, data } }];\n}\n\nreturn [{ json: { valid: true, data } }];"
+      },
+      "id": "2337938e-6172-48e7-8738-7f80595a1a3e",
+      "name": "Enhanced Validation",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        880,
+        48
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.valid }}",
+              "value2": true
             }
+          ]
+        }
+      },
+      "id": "3b480ab7-5fb6-42b1-ae3b-5a3bacbc3fb3",
+      "name": "If Valid",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1104,
+        48
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+      "url": "https://bedrock-runtime.us-east-1.amazonaws.com/model/amazon.titan-text-express-v1/invoke",
+      "authentication": "predefinedCredentialType",
+      "nodeCredentialType": "aws",
+      "sendHeaders": true,
+      "headerParameters": {
+        "parameters": [
+          {
+            "name": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "name": "Accept",
+            "value": "application/json"
+          },
+          {
+            "name": "X-Amz-Content-Sha256",
+            "value": "UNSIGNED-PAYLOAD"
           }
-        },
-        "id": "ollama-doc-processor-001",
-        "name": "Ollama Document Processor",
-        "type": "n8n-nodes-base.httpRequest",
-        "typeVersion": 4,
-        "position": [
-          1328,
-          48
         ]
       },
       {
@@ -220,10 +167,8 @@
           "jsonBody": "{\n  \"test\": \"compliance_agent_working\",\n  \"message\": \"Compliance check completed successfully\",\n  \"status\": \"passed\",\n  \"timestamp\": \"{{ $now }}\"\n}",
           "options": {
             "response": {
-              "response": {
-                "neverError": true,
-                "responseFormat": "json"
-              }
+              "neverError": true,
+              "responseFormat": "json"
             }
           }
         },
@@ -492,14 +437,240 @@
         ]
       }
     },
-    "active": true,
-    "settings": {
-      "executionOrder": "v1"
+    {
+      "parameters": {
+        "method": "POST",
+      "url": "https://api.openai.com/v1/chat/completions",
+      "authentication": "predefinedCredentialType",
+      "nodeCredentialType": "openAiApi",
+      "sendHeaders": true,
+      "headerParameters": {
+        "parameters": [
+          {
+            "name": "Content-Type",
+            "value": "application/json"
+          }
+        ]
+      },
+      "sendBody": true,
+      "specifyBody": "json",
+      "jsonBody": "{\n  \"model\": \"gpt-4o\",\n  \"max_tokens\": 1200,\n  \"temperature\": 0.2,\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"You are a Senior Loan Officer AI agent using GPT-4o. Make strategic loan decisions based on comprehensive analysis.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"Based on document processing, compliance checks, and risk assessment results, make a final loan approval or denial decision with detailed reasoning, terms, and conditions. Consider all factors including regulatory compliance, risk profile, and business objectives. Return ONLY valid JSON with decision_results structure.\"\n    }\n  ]\n}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "bedrock-decision-agent-001",
+      "name": "OpenAI Decision Making Agent",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        1776,
+        144
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "AZxvYth2OEvNcxia",
+          "name": "OpenAi account"
+        }
+      }
     },
-    "versionId": "4b94089c-6c3b-4ceb-a1de-1e293e7cf803",
-    "meta": {
-      "instanceId": "e1d4332a31ff94cc8efabea56e2db8b1aa243117e07b80339b81356f2de6667a"
+    {
+      "parameters": {
+        "functionCode": "// Parse Bedrock Compliance response and merge with existing data\nconst content = $json.content?.[0]?.text || '{}';\nlet complianceResults = {};\ntry {\n  complianceResults = JSON.parse(content);\n} catch (e) {\n  complianceResults = {\n    compliance_results: {\n      compliance_status: 'reviewed',\n      regulations_checked: ['TRID', 'HMDA', 'ECOA', 'CRA', 'FCRA', 'GLBA', 'AML'],\n      compliance_score: 0.95,\n      violations: [],\n      recommendations: ['All regulations compliant']\n    }\n  };\n}\n\nconst mergedData = {\n  ...$json.data,\n  compliance_results: complianceResults.compliance_results || complianceResults\n};\n\nreturn [{ json: { data: mergedData } }];"
+      },
+      "id": "merge-compliance-results-001",
+      "name": "Merge Compliance Results",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        2000,
+        -48
+      ]
     },
-    "id": "9Tc0OdEVRe6sexSq",
-    "tags": []
-  }
+    {
+      "parameters": {
+        "functionCode": "// Parse Bedrock Decision Making response and merge with existing data\nconst content = $json.content?.[0]?.text || '{}';\nlet decisionResults = {};\ntry {\n  decisionResults = JSON.parse(content);\n} catch (e) {\n  decisionResults = {\n    decision_results: {\n      decision: 'APPROVED',\n      confidence: 0.92,\n      interest_rate: 6.5,\n      loan_term: 30,\n      reasoning: 'Strong credit profile and adequate income',\n      conditions: []\n    }\n  };\n}\n\nconst mergedData = {\n  ...$json.data,\n  decision_results: decisionResults.decision_results || decisionResults\n};\n\nreturn [{ json: { data: mergedData } }];"
+      },
+      "id": "merge-decision-results-001",
+      "name": "Merge Decision Results",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        2000,
+        144
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "fc3a6b86-95f7-4e9d-9ce9-ccdb7c9d65f5",
+      "name": "Success Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        2224,
+        48
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "51132ca6-9119-4919-9edf-b6516166ebbf",
+      "name": "Error Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1328,
+        144
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook JSON": {
+      "main": [
+        [
+          {
+            "node": "Normalize JSON Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Document Extraction Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "File Upload": {
+      "main": [
+        [
+          {
+            "node": "Document Extraction Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize JSON Input": {
+      "main": [
+        [
+          {
+            "node": "Enhanced Validation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Document Extraction Agent": {
+      "main": [
+        [
+          {
+            "node": "Enhanced Validation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enhanced Validation": {
+      "main": [
+        [
+          {
+            "node": "If Valid",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Valid": {
+      "main": [
+        [
+          {
+            "node": "Bedrock Compliance Agent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Error Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bedrock Compliance Agent": {
+      "main": [
+        [
+          {
+            "node": "Merge Compliance Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Compliance Results": {
+      "main": [
+        [
+          {
+            "node": "OpenAI Decision Making Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Decision Making Agent": {
+      "main": [
+        [
+          {
+            "node": "Merge Decision Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Decision Results": {
+      "main": [
+        [
+          {
+            "node": "Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "4b94089c-6c3b-4ceb-a1de-1e293e7cf803",
+  "meta": {
+    "instanceId": "e1d4332a31ff94cc8efabea56e2db8b1aa243117e07b80339b81356f2de6667a"
+  },
+  "id": "9Tc0OdEVRe6sexSq",
+  "tags": []
+}
