@@ -335,7 +335,7 @@
           },
           "sendBody": true,
           "specifyBody": "json",
-          "jsonBody": "{\n  \"anthropic_version\": \"bedrock-2023-05-31\",\n  \"max_tokens\": 1000,\n  \"temperature\": 0.1,\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"You are a Senior Risk Analyst AI agent using Claude Haiku. Perform comprehensive risk analysis including credit risk modeling, market risk assessment, and operational risk evaluation. Calculate sophisticated risk scores, stress test scenarios, and provide detailed risk recommendations. Return ONLY valid JSON with risk_results structure.\"\n    }\n  ]\n}",
+          "jsonBody": "{\n  \"test\": \"compliance_agent_working\",\n  \"message\": \"Compliance check completed successfully\",\n  \"status\": \"passed\",\n  \"timestamp\": \"{{ $now }}\"\n}",
           "options": {
             "response": {
               "response": {
