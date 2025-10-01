@@ -50,6 +50,29 @@
     },
     {
       "parameters": {
+        "bucketName": "loan-documents-bucket",
+        "event": "ObjectCreated",
+        "prefix": "loan-applications/",
+        "suffix": ".pdf",
+        "options": {}
+      },
+      "id": "s3-trigger-001",
+      "name": "S3 Upload Trigger",
+      "type": "n8n-nodes-base.awsS3Trigger",
+      "typeVersion": 1,
+      "position": [
+        -2544,
+        208
+      ],
+      "credentials": {
+        "aws": {
+          "id": "DVs7dBmJBeDHSSO2",
+          "name": "AWS account"
+        }
+      }
+    },
+    {
+      "parameters": {
         "functionCode": "// Process uploaded documents and extract loan data\nconst items = $input.all();\nconst files = [];\n\nfor (const item of items) {\n  if (item.binary && item.binary.file) {\n    const file = item.binary.file;\n    files.push({\n      filename: file.fileName || 'uploaded_file',\n      mimeType: file.mimeType || 'application/octet-stream',\n      size: file.data ? file.data.length : 0,\n      content: 'File uploaded successfully'\n    });\n  }\n}\n\nif (files.length === 0) {\n  files.push({\n    filename: 'uploaded_document.pdf',\n    mimeType: 'application/pdf',\n    size: 2400,\n    content: 'File uploaded successfully'\n  });\n}\n\nconst extractedData = {\n  loan_id: `LOAN-${Date.now()}`,\n  borrower_name: 'Extracted from Document',\n  loan_amount: 300000,\n  property_address: '123 Main St, City, ST 12345',\n  annual_income: 75000,\n  credit_score: 720,\n  documents: files,\n  source: 'file_upload',\n  processing_status: 'documents_processed'\n};\n\nreturn [{ json: { data: extractedData, valid: true } }];"
       },
       "id": "eb5a684b-91ed-4c98-861b-e91205884324",
@@ -472,6 +495,28 @@
     },
     {
       "parameters": {
+        "operation": "putItem",
+        "tableName": "loan-decisions",
+        "item": "={\n  \"loan_id\": $json.data.loan_id,\n  \"timestamp\": new Date().toISOString(),\n  \"decision\": $json.data.decision_results.decision,\n  \"confidence\": $json.data.decision_results.confidence,\n  \"interest_rate\": $json.data.decision_results.interest_rate,\n  \"loan_term\": $json.data.decision_results.loan_term,\n  \"approval_amount\": $json.data.decision_results.approval_amount,\n  \"reasoning\": $json.data.decision_results.reasoning,\n  \"conditions\": $json.data.decision_results.conditions,\n  \"stipulations\": $json.data.decision_results.stipulations,\n  \"borrower_name\": $json.data.document_results?.borrower_info?.full_name || 'Unknown',\n  \"loan_amount\": $json.data.document_results?.loan_details?.loan_amount || $json.data.loan_amount,\n  \"credit_score\": $json.data.document_results?.financial_info?.credit_score || $json.data.credit_score,\n  \"risk_score\": $json.data.risk_results?.overall_risk_score || 0,\n  \"risk_level\": $json.data.risk_results?.risk_level || 'UNKNOWN',\n  \"compliance_status\": $json.data.compliance_results?.compliance_status || 'UNKNOWN',\n  \"compliance_score\": $json.data.compliance_results?.compliance_score || 0,\n  \"processing_status\": \"completed\",\n  \"ttl\": Math.floor(Date.now() / 1000) + (365 * 24 * 60 * 60)\n}",
+        "options": {}
+      },
+      "id": "dynamodb-output-001",
+      "name": "Save to DynamoDB",
+      "type": "n8n-nodes-base.awsDynamoDb",
+      "typeVersion": 1,
+      "position": [
+        880,
+        -28
+      ],
+      "credentials": {
+        "aws": {
+          "id": "DVs7dBmJBeDHSSO2",
+          "name": "AWS account"
+        }
+      }
+    },
+    {
+      "parameters": {
         "options": {}
       },
       "id": "19f4bfef-04cb-4d48-9755-3b52cc46d8bb",
@@ -495,7 +540,7 @@
         196
       ],
       "id": "c3b6afcf-6aaa-49c6-9c4a-2ff63ae8dec3",
-      "name": "AWS Bedrock Chat Model",
+      "name": "Document Processing - AWS Bedrock Titan",
       "credentials": {
         "aws": {
           "id": "DVs7dBmJBeDHSSO2",
@@ -545,7 +590,7 @@
         196
       ],
       "id": "14759740-d9ae-4a0e-bccf-06defa111469",
-      "name": "AWS Bedrock Chat Model1",
+      "name": "Risk Assessment - AWS Bedrock Claude",
       "credentials": {
         "aws": {
           "id": "DVs7dBmJBeDHSSO2",
@@ -565,7 +610,7 @@
         196
       ],
       "id": "d2ee8a95-1b81-45bc-bbb6-67c66d06373a",
-      "name": "AWS Bedrock Chat Model2",
+      "name": "Compliance Check - AWS Bedrock Claude",
       "credentials": {
         "aws": {
           "id": "DVs7dBmJBeDHSSO2",
@@ -600,7 +645,7 @@
         196
       ],
       "id": "56ec3a54-e999-4e57-9b04-0afd34d2bd95",
-      "name": "AWS Bedrock Chat Model3",
+      "name": "Decision Making - AWS Bedrock Claude",
       "credentials": {
         "aws": {
           "id": "DVs7dBmJBeDHSSO2",
@@ -649,6 +694,17 @@
       ]
     },
     "File Upload": {
+      "main": [
+        [
+          {
+            "node": "Document Extraction Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "S3 Upload Trigger": {
       "main": [
         [
           {
@@ -747,6 +803,17 @@
       "main": [
         [
           {
+            "node": "Save to DynamoDB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save to DynamoDB": {
+      "main": [
+        [
+          {
             "node": "Success Response",
             "type": "main",
             "index": 0
@@ -754,7 +821,7 @@
         ]
       ]
     },
-    "AWS Bedrock Chat Model": {
+    "Document Processing - AWS Bedrock Titan": {
       "ai_languageModel": [
         [
           {
@@ -787,7 +854,7 @@
         ]
       ]
     },
-    "AWS Bedrock Chat Model1": {
+    "Risk Assessment - AWS Bedrock Claude": {
       "ai_languageModel": [
         [
           {
@@ -798,7 +865,7 @@
         ]
       ]
     },
-    "AWS Bedrock Chat Model2": {
+    "Compliance Check - AWS Bedrock Claude": {
       "ai_languageModel": [
         [
           {
@@ -820,7 +887,7 @@
         ]
       ]
     },
-    "AWS Bedrock Chat Model3": {
+    "Decision Making - AWS Bedrock Claude": {
       "ai_languageModel": [
         [
           {
