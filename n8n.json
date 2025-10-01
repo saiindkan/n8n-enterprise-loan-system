@@ -185,55 +185,6 @@
       },
       {
         "parameters": {
-          "method": "POST",
-          "url": "https://httpbin.org/post",
-          "authentication": "none",
-          "sendHeaders": true,
-          "headerParameters": {
-            "parameters": [
-              {
-                "name": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "name": "Accept",
-                "value": "application/json"
-              },
-              {
-                "name": "X-Amz-Content-Sha256",
-                "value": "UNSIGNED-PAYLOAD"
-              }
-            ]
-          },
-          "sendBody": true,
-          "specifyBody": "json",
-          "jsonBody": "{\n  \"anthropic_version\": \"bedrock-2023-05-31\",\n  \"max_tokens\": 500,\n  \"temperature\": 0.1,\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"You are a document processing AI agent using AWS Bedrock. Analyze these loan documents and extract key information. Return ONLY valid JSON. Here is the loan data: {\\\"loan_id\\\":\\\"LOAN-1759271364264\\\",\\\"borrower_name\\\":\\\"Extracted from Document\\\",\\\"loan_amount\\\":300000,\\\"property_address\\\":\\\"123 Main St, City, ST 12345\\\",\\\"annual_income\\\":75000,\\\"credit_score\\\":720,\\\"documents\\\":[{\\\"filename\\\":\\\"uploaded_document.pdf\\\",\\\"mimeType\\\":\\\"application/pdf\\\",\\\"size\\\":2400,\\\"content\\\":\\\"File uploaded successfully\\\"}],\\\"source\\\":\\\"file_upload\\\",\\\"processing_status\\\":\\\"documents_processed\\\"}\"\n    }\n  ]\n}\n",
-          "options": {
-            "response": {
-              "response": {
-                "neverError": true,
-                "responseFormat": "json"
-              }
-            }
-          }
-        },
-        "id": "6971c070-7aa4-402d-9fa3-e0cf5966d6d8",
-        "name": "Bedrock Document Processor",
-        "type": "n8n-nodes-base.httpRequest",
-        "typeVersion": 4,
-        "position": [
-          1328,
-          48
-        ],
-        "credentials": {
-          "aws": {
-            "id": "DVs7dBmJBeDHSSO2",
-            "name": "AWS account"
-          }
-        }
-      },
-      {
-        "parameters": {
           "functionCode": "// Parse OpenAI response and merge with existing data\nconsole.log('OpenAI Response:', JSON.stringify($json, null, 2));\n\n// Try to get content from different possible response structures\nlet content = '';\nif ($json.choices && $json.choices[0] && $json.choices[0].message) {\n  content = $json.choices[0].message.content;\n} else if ($json.content) {\n  content = $json.content;\n} else if ($json.text) {\n  content = $json.text;\n} else {\n  content = JSON.stringify($json);\n}\n\nconsole.log('Extracted content:', content);\n\nlet documentResults = {};\ntry {\n  documentResults = JSON.parse(content);\n} catch (e) {\n  console.log('JSON parse error:', e);\n  documentResults = {\n    document_results: {\n      total_documents: 1,\n      processed_documents: [{\n        document_id: 'DOC-1',\n        filename: 'processed_document',\n        document_type: 'loan_application',\n        status: 'processed',\n        confidence: 0.95,\n        extracted_data: {\n          borrower_name: 'AI Processed',\n          loan_amount: 300000,\n          ai_response: content.substring(0, 100)\n        }\n      }],\n      processing_time: '1.2 seconds',\n      ai_confidence: 0.92,\n      raw_response: content\n    }\n  };\n}\n\nconst mergedData = {\n  ...$json.data,\n  document_results: documentResults.document_results || documentResults\n};\n\nconsole.log('Merged data:', JSON.stringify(mergedData, null, 2));\nreturn [{ json: { data: mergedData } }];"
         },
         "id": "37ccd321-2af7-46dd-b5ce-657c94a9d364",
@@ -243,19 +194,6 @@
         "position": [
           1552,
           -48
-        ]
-      },
-      {
-        "parameters": {
-          "functionCode": "// Parse Bedrock response and merge with existing data\nconst content = $json.content?.[0]?.text || '{}';\nlet bedrockResults = {};\ntry {\n  bedrockResults = JSON.parse(content);\n} catch (e) {\n  bedrockResults = {\n    bedrock_results: {\n      total_documents: 1,\n      processed_documents: [{\n        document_id: 'DOC-BEDROCK-1',\n        filename: 'processed_document_bedrock',\n        document_type: 'loan_application',\n        status: 'processed',\n        confidence: 0.95,\n        extracted_data: {\n          borrower_name: 'Bedrock AI Processed',\n          loan_amount: 300000\n        }\n      }],\n      processing_time: '1.5 seconds',\n      ai_confidence: 0.90,\n      model_used: 'claude-3-haiku'\n    }\n  };\n}\n\nconst mergedData = {\n  ...$json.data,\n  bedrock_results: bedrockResults.bedrock_results || bedrockResults\n};\n\nreturn [{ json: { data: mergedData } }];"
-        },
-        "id": "697f6c47-59dd-444c-9e39-28412d0fef22",
-        "name": "Merge Bedrock Results",
-        "type": "n8n-nodes-base.function",
-        "typeVersion": 1,
-        "position": [
-          1552,
-          48
         ]
       },
       {
@@ -342,19 +280,6 @@
         "position": [
           2000,
           -48
-        ]
-      },
-      {
-        "parameters": {
-          "functionCode": "// Parse Bedrock Risk Assessment response and merge with existing data\nconst content = $json.content?.[0]?.text || '{}';\nlet riskResults = {};\ntry {\n  riskResults = JSON.parse(content);\n} catch (e) {\n  riskResults = {\n    risk_results: {\n      overall_risk_score: 0.25,\n      credit_risk: 0.20,\n      market_risk: 0.30,\n      operational_risk: 0.15,\n      risk_level: 'LOW',\n      recommendations: ['Loan approved with standard terms']\n    }\n  };\n}\n\nconst mergedData = {\n  ...$json.data,\n  risk_results: riskResults.risk_results || riskResults\n};\n\nreturn [{ json: { data: mergedData } }];"
-        },
-        "id": "merge-risk-results-001",
-        "name": "Merge Risk Results",
-        "type": "n8n-nodes-base.function",
-        "typeVersion": 1,
-        "position": [
-          2000,
-          48
         ]
       },
       {
@@ -469,7 +394,7 @@
         "main": [
           [
             {
-              "node": "Bedrock Document Processor",
+              "node": "Bedrock Compliance Agent",
               "type": "main",
               "index": 0
             }
@@ -505,30 +430,8 @@
           ]
         ]
       },
-      "Bedrock Document Processor": {
-        "main": [
-          [
-            {
-              "node": "Merge Bedrock Results",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
-      },
       "Merge Document Results": {
         "main": []
-      },
-      "Merge Bedrock Results": {
-        "main": [
-          [
-            {
-              "node": "Bedrock Compliance Agent",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
       },
       "Merge Ollama Results": {
         "main": []
@@ -556,17 +459,6 @@
         ]
       },
       "Merge Compliance Results": {
-        "main": [
-          [
-            {
-              "node": "Bedrock Risk Assessment Agent",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
-      },
-      "Merge Risk Results": {
         "main": [
           [
             {
