@@ -1,0 +1,55 @@
+{
+  "application_id": "APP-2024-001234",
+  "applicant_name": "Sarah Johnson",
+  "loan_id": "LOAN-2024-001234",
+  "borrower_name": "Sarah Johnson",
+  "loan_amount": 425000,
+  "property_address": "456 Oak Avenue, San Francisco, CA 94102",
+  "annual_income": 125000,
+  "credit_score": 785,
+  "employment_status": "Full-time",
+  "employer_name": "TechCorp Solutions",
+  "monthly_debt": 3200,
+  "loan_purpose": "Primary Residence Purchase",
+  "loan_term": 30,
+  "down_payment": 85000,
+  "property_type": "Single Family Home",
+  "occupancy_type": "Primary Residence",
+  "phone": "415-555-0123",
+  "email": "sarah.johnson@email.com",
+  "ssn": "123-45-6789",
+  "date_of_birth": "1985-03-15",
+  "current_address": "789 Pine Street, Oakland, CA 94601",
+  "documents": [
+    {
+      "filename": "pay_stub_2024_01.pdf",
+      "mimeType": "application/pdf",
+      "size": 2400,
+      "content": "Recent pay stub showing $10,416 monthly income"
+    },
+    {
+      "filename": "tax_return_2023.pdf",
+      "mimeType": "application/pdf", 
+      "size": 1800,
+      "content": "2023 tax return showing $125,000 annual income"
+    },
+    {
+      "filename": "bank_statement_2024_01.pdf",
+      "mimeType": "application/pdf",
+      "size": 3200,
+      "content": "Bank statement showing $95,000 in savings"
+    },
+    {
+      "filename": "credit_report.pdf",
+      "mimeType": "application/pdf",
+      "size": 1500,
+      "content": "Credit report showing 785 credit score"
+    }
+  ],
+  "source": "web_application",
+  "processing_status": "submitted",
+  "submission_date": "2024-01-15T10:30:00Z",
+  "loan_officer": "Michael Chen",
+  "branch_location": "San Francisco Downtown",
+  "application_notes": "Strong credit profile, stable employment, adequate down payment. Property in desirable neighborhood with good appreciation potential."
+}

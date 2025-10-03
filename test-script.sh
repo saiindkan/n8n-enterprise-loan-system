@@ -83,3 +83,4 @@ echo "✅ Testing completed!"
 echo ""
 echo "🔍 Check the n8n UI at http://localhost:5678 to see execution results"
 echo "📊 Look for any failed nodes or error messages"
+

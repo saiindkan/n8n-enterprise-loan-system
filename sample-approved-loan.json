@@ -1,0 +1,49 @@
+{
+  "application_id": "APP-2024-SJ001",
+  "applicant_name": "Sarah Johnson",
+  "loan_id": "LOAN-2024-SJ001",
+  "borrower_name": "Sarah Johnson",
+  "loan_amount": 425000,
+  "property_address": "123 Oak Street, Austin, TX 78701",
+  "annual_income": 125000,
+  "credit_score": 785,
+  "employment_status": "Full-time",
+  "employer_name": "Tech Solutions Inc",
+  "monthly_debt": 2200,
+  "loan_purpose": "Primary Residence Purchase",
+  "loan_term": 30,
+  "down_payment": 85000,
+  "property_type": "Single Family",
+  "occupancy_type": "Primary Residence",
+  "phone": "512-555-0123",
+  "email": "sarah.johnson@email.com",
+  "ssn": "123-45-6789",
+  "date_of_birth": "1988-04-22",
+  "current_address": "456 Pine Avenue, Austin, TX 78702",
+  "documents": [
+    {
+      "filename": "pay_stub_2024_02.pdf",
+      "mimeType": "application/pdf",
+      "size": 2400,
+      "content": "Recent pay stub showing $10,400 monthly income"
+    },
+    {
+      "filename": "tax_return_2023.pdf",
+      "mimeType": "application/pdf",
+      "size": 2100,
+      "content": "2023 tax return showing $125,000 annual income"
+    },
+    {
+      "filename": "bank_statement_2024_02.pdf",
+      "mimeType": "application/pdf",
+      "size": 3500,
+      "content": "Bank statement showing $60,000 in liquid assets"
+    }
+  ],
+  "source": "web_application",
+  "processing_status": "submitted",
+  "submission_date": "2024-03-10T10:15:00Z",
+  "loan_officer": "Jennifer Martinez",
+  "branch_location": "Austin Downtown",
+  "application_notes": "Strong credit profile with stable employment history"
+}

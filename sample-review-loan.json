@@ -1,0 +1,43 @@
+{
+  "application_id": "APP-2024-DT004",
+  "applicant_name": "David Thompson",
+  "loan_id": "LOAN-2024-DT004",
+  "borrower_name": "David Thompson",
+  "loan_amount": 650000,
+  "property_address": "999 Spruce Avenue, San Antonio, TX 78201",
+  "annual_income": 110000,
+  "credit_score": 695,
+  "employment_status": "Self-employed",
+  "employer_name": "Thompson Consulting",
+  "monthly_debt": 3200,
+  "loan_purpose": "Primary Residence Purchase",
+  "loan_term": 30,
+  "down_payment": 65000,
+  "property_type": "Single Family",
+  "occupancy_type": "Primary Residence",
+  "phone": "210-555-0321",
+  "email": "david.thompson@email.com",
+  "ssn": "789-01-2345",
+  "date_of_birth": "1985-02-17",
+  "current_address": "111 Willow Way, San Antonio, TX 78202",
+  "documents": [
+    {
+      "filename": "tax_return_2023.pdf",
+      "mimeType": "application/pdf",
+      "size": 2300,
+      "content": "2023 tax return showing $110,000 annual income"
+    },
+    {
+      "filename": "bank_statement_2024_02.pdf",
+      "mimeType": "application/pdf",
+      "size": 3000,
+      "content": "Bank statement showing variable business income and reserves"
+    }
+  ],
+  "source": "web_application",
+  "processing_status": "submitted",
+  "submission_date": "2024-03-10T10:30:00Z",
+  "loan_officer": "Priya Nair",
+  "branch_location": "San Antonio North",
+  "application_notes": "Self-employed applicant with good income but higher debt-to-income ratio requiring manual review"
+}

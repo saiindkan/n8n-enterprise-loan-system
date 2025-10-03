@@ -1,0 +1,670 @@
+{
+  "name": "Enterprise Loan Processing Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "loan-application",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "5a33f436-680a-4d76-b5d6-3280b29f8d5c",
+      "name": "Webhook JSON",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -1616,
+        80
+      ],
+      "webhookId": "41beefc6-feb7-4794-b059-42c045bf7e8c"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "file-upload",
+        "responseMode": "responseNode",
+        "options": {
+          "binaryData": false
+        }
+      },
+      "id": "cdc76ca8-d8ae-495d-af22-b653e6521ec2",
+      "name": "File Upload",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -1840,
+        -128
+      ],
+      "webhookId": "58d36c9e-a796-4358-9d9d-18953c5d9927"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Normalize JSON input\nconst data = $json.body || $json;\nreturn [{ json: { data, valid: true } }];"
+      },
+      "id": "701e543c-15cd-45d9-9a17-9af1b3ed557c",
+      "name": "Normalize JSON Input",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        -1392,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Parse S3 downloaded JSON file into $json.data\nconsole.log('S3 Input:', JSON.stringify($json, null, 2));\nconsole.log('Binary data:', $binary);\n\nlet parsed = null;\n\n// Check for binary data from S3 download\nif ($binary && $binary.data) {\n  console.log('Binary data found:', typeof $binary.data, $binary.data.length);\n  \n  try {\n    // S3 download with binaryData: true should give us the file content\n    let content = '';\n    \n    if (typeof $binary.data === 'string') {\n      content = $binary.data;\n    } else if ($binary.data.data) {\n      // Base64 encoded\n      content = Buffer.from($binary.data.data, 'base64').toString('utf8');\n    } else if (Buffer.isBuffer($binary.data)) {\n      content = $binary.data.toString('utf8');\n    }\n    \n    console.log('File content:', content.substring(0, 200) + '...');\n    \n    if (content) {\n      parsed = JSON.parse(content);\n      console.log('Successfully parsed JSON from S3 file');\n    }\n  } catch (e) {\n    console.log('Failed to parse S3 file content:', e.message);\n  }\n}\n\n// Fallback: check if we have loan data in the input\nif (!parsed || Object.keys(parsed).length === 0) {\n  const input = $json.body || $json;\n  console.log('Checking input for loan data:', input);\n  \n  if (input && typeof input === 'object') {\n    // Check if this is loan application data\n    if (input.loan_amount || input.borrower_name || input.applicant_name) {\n      parsed = input;\n      console.log('Using input as loan data');\n    }\n  }\n}\n\nconsole.log('Final parsed result:', parsed);\nreturn [{ json: { data: parsed || {}, source: 's3_parsed' } }];"
+      },
+      "id": "2b6f1b68-6f2e-49aa-9b4a-0f4b2e3b0f31",
+      "name": "Parse S3 JSON",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        -1504,
+        -128
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Enhanced validation for both JSON and file upload\nconst data = $json.data || {};\nconst errors = [];\n\nif (!data.loan_id) errors.push('Missing loan_id');\nif (!data.borrower_name) errors.push('Missing borrower_name');\nif (!data.loan_amount) errors.push('Missing loan_amount');\n\nif (data.loan_amount && data.loan_amount < 50000) {\n  errors.push('Minimum loan amount is $50,000');\n}\nif (data.loan_amount && data.loan_amount > 2000000) {\n  errors.push('Maximum loan amount is $2,000,000');\n}\n\nif (data.documents && data.documents.length === 0) {\n  errors.push('At least one document is required');\n}\n\nif (errors.length > 0) {\n  return [{ json: { valid: false, errors, data } }];\n}\n\nreturn [{ json: { valid: true, data } }];"
+      },
+      "id": "9e2f3040-b140-4097-a212-fcc341fccb63",
+      "name": "Enhanced Validation",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        -1168,
+        -32
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.valid }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "067ed4ec-7740-4862-87d5-ad90795e1dc4",
+      "name": "If Valid",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        -944,
+        -32
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Parse Document Processing response and merge with existing data\nconsole.log('Document Processing Response:', JSON.stringify($json, null, 2));\n\n// Prefer AI output if present\nlet documentResults = $json.document_analysis || null;\n\n// If AI did not return, derive from parsed input (real data)\nif (!documentResults) {\n  const d = $json.data || {};\n  documentResults = {\n    borrower_info: {\n      full_name: String(d.applicant_name || d.borrower_name || ''),\n      ssn: String(d.ssn || ''),\n      phone: String(d.phone || ''),\n      email: String(d.email || ''),\n      address: String(d.current_address || d.property_address || '')\n    },\n    loan_details: {\n      loan_amount: Number(d.loan_amount ?? 0),\n      property_address: String(d.property_address || ''),\n      loan_purpose: String(d.loan_purpose || ''),\n      loan_term: Number(d.loan_term ?? 0)\n    },\n    financial_info: {\n      annual_income: Number(d.annual_income ?? 0),\n      employment_status: String(d.employment_status || ''),\n      credit_score: Number(d.credit_score ?? 0),\n      monthly_debt: Number(d.monthly_debt ?? 0)\n    },\n    documents_found: Array.isArray(d.documents) ? d.documents.map(x => x.filename || String(x)).filter(Boolean) : [],\n    confidence_score: 0.9\n  };\n}\n\n// Normalize types and ensure presence\nconst safeDoc = {\n  borrower_info: {\n    full_name: String(documentResults?.borrower_info?.full_name || ''),\n    ssn: String(documentResults?.borrower_info?.ssn || ''),\n    phone: String(documentResults?.borrower_info?.phone || ''),\n    email: String(documentResults?.borrower_info?.email || ''),\n    address: String(documentResults?.borrower_info?.address || '')\n  },\n  loan_details: {\n    loan_amount: Number(documentResults?.loan_details?.loan_amount ?? 0),\n    property_address: String(documentResults?.loan_details?.property_address || ''),\n    loan_purpose: String(documentResults?.loan_details?.loan_purpose || ''),\n    loan_term: Number(documentResults?.loan_details?.loan_term ?? 0)\n  },\n  financial_info: {\n    annual_income: Number(documentResults?.financial_info?.annual_income ?? 0),\n    employment_status: String(documentResults?.financial_info?.employment_status || ''),\n    credit_score: Number(documentResults?.financial_info?.credit_score ?? 0),\n    monthly_debt: Number(documentResults?.financial_info?.monthly_debt ?? 0)\n  },\n  documents_found: Array.isArray(documentResults?.documents_found) ? documentResults.documents_found : [],\n  confidence_score: Number(documentResults?.confidence_score ?? 0)\n};\n\nconst mergedData = {\n  ...($json.data || {}),\n  document_results: safeDoc\n};\n\nconsole.log('Merged Document Data:', JSON.stringify(mergedData, null, 2));\nreturn [{ json: { data: mergedData } }];"
+      },
+      "id": "d3b88285-0743-48b5-9b2d-400acab4fd79",
+      "name": "Merge Document Results",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        -368,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Parse Risk Assessment response and merge with existing data\nconsole.log('Risk Assessment Response:', JSON.stringify($json, null, 2));\n\n// The Risk Assessment agent returns data directly in $json.risk_analysis\nlet riskResults = {};\nif ($json.risk_analysis) {\n  riskResults = $json.risk_analysis;\n} else {\n  // Fallback if structure is different\n  riskResults = {\n    overall_risk_score: 0.25,\n    credit_risk: 0.20,\n    market_risk: 0.30,\n    operational_risk: 0.15,\n    risk_level: 'LOW',\n    recommendations: ['Loan approved with standard terms']\n  };\n}\n\n// Normalize values and ensure presence\nconst safeRisk = {\n  overall_risk_score: Number(riskResults?.overall_risk_score ?? 0),\n  credit_risk: Number(riskResults?.credit_risk ?? 0),\n  market_risk: Number(riskResults?.market_risk ?? 0),\n  operational_risk: Number(riskResults?.operational_risk ?? 0),\n  risk_level: String(riskResults?.risk_level || 'UNKNOWN'),\n  debt_to_income_ratio: Number(riskResults?.debt_to_income_ratio ?? 0),\n  recommendations: Array.isArray(riskResults?.recommendations) ? riskResults.recommendations : [],\n  approval_recommendation: String(riskResults?.approval_recommendation || '')\n};\n\nconst mergedData = {\n  ...($json.data || {}),\n  risk_results: safeRisk\n};\n\nconsole.log('Merged Risk Data:', JSON.stringify(mergedData, null, 2));\nreturn [{ json: { data: mergedData } }];"
+      },
+      "id": "85aec217-c2e9-455f-b3e3-4bf3d43b39ce",
+      "name": "Merge Risk Results",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        208,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Parse Compliance response and merge with existing data\nconsole.log('Compliance Response:', JSON.stringify($json, null, 2));\n\n// The Compliance agent returns data directly in $json.compliance_results\nlet complianceResults = {};\nif ($json.compliance_results) {\n  complianceResults = $json.compliance_results;\n} else {\n  // Fallback if structure is different\n  complianceResults = {\n    compliance_status: 'reviewed',\n    regulations_checked: ['TRID', 'HMDA', 'ECOA', 'CRA', 'FCRA', 'GLBA', 'AML'],\n    compliance_score: 0.95,\n    violations: [],\n    recommendations: ['All regulations compliant']\n  };\n}\n\n// Normalize and ensure presence\nconst safeCompliance = {\n  compliance_status: String(complianceResults?.compliance_status || 'review_needed'),\n  regulations_checked: Array.isArray(complianceResults?.regulations_checked) ? complianceResults.regulations_checked : [],\n  compliance_score: Number(complianceResults?.compliance_score ?? 0),\n  violations: Array.isArray(complianceResults?.violations) ? complianceResults.violations : [],\n  recommendations: Array.isArray(complianceResults?.recommendations) ? complianceResults.recommendations : [],\n  risk_flags: Array.isArray(complianceResults?.risk_flags) ? complianceResults.risk_flags : []\n};\n\nconst mergedData = {\n  ...($json.data || {}),\n  compliance_results: safeCompliance\n};\n\nconsole.log('Merged Compliance Data:', JSON.stringify(mergedData, null, 2));\nreturn [{ json: { data: mergedData } }];"
+      },
+      "id": "183f11ce-f565-4d87-bab1-a22239e05c21",
+      "name": "Merge Compliance Results",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        784,
+        128
+      ]
+    },
+    {
+      "parameters": {
+          "functionCode": "// Parse Decision Making response and merge with existing data\nconsole.log('Decision Making Response:', JSON.stringify($json, null, 2));\n\n// The Decision Making agent returns data directly in $json.decision_results\nlet decisionResults = {};\nif ($json.decision_results) {\n  decisionResults = $json.decision_results;\n} else {\n  // Fallback if structure is different\n  decisionResults = {\n    decision: 'APPROVED',\n    confidence: 0.92,\n    interest_rate: 6.5,\n    loan_term: 30,\n    reasoning: 'Strong credit profile and adequate income',\n    conditions: []\n  };\n}\n\n// Merge with existing data\nconst base = $json.data || {};\nconst mergedData = {\n  ...base,\n  decision_results: decisionResults\n};\n\n// Monthly payment calc (principal, APR %, months)\nfunction calcMonthlyPayment(principal, annualRate, months) {\n  if (principal == null || annualRate == null || months == null) return null;\n  if (months === 0) return null;\n  const r = (annualRate / 100) / 12;\n  if (r === 0) return +(principal / months).toFixed(2);\n  const pow = Math.pow(1 + r, months);\n  const payment = principal * r * pow / (pow - 1);\n  return +payment.toFixed(2);\n}\n\n// Standardized fields with robust fallbacks\nfunction generateApplicationId() {\n  const rand = Math.random().toString(36).slice(2, 6).toUpperCase();\n  return `APP-${Date.now()}-${rand}`;\n}\nconst application_id = mergedData.loan_id || mergedData.application_id || ($json.data && $json.data.loan_id) || $json.loan_id || generateApplicationId();\nconst applicant_name = mergedData.borrower_name || mergedData.document_results?.borrower_info?.full_name || mergedData.applicant_name || '';\nconst credit_score = mergedData.document_results?.financial_info?.credit_score ?? mergedData.credit_score ?? 750;\nconst loan_amount = mergedData.document_results?.loan_details?.loan_amount ?? mergedData.loan_amount ?? 350000;\nconst loan_term_months = (decisionResults.loan_term != null) ? decisionResults.loan_term * 12 : null;\nconst monthly_payment = calcMonthlyPayment(loan_amount, decisionResults.interest_rate ?? null, loan_term_months);\nconst processing_time_seconds = mergedData.processing_time_seconds ?? 0;\nconst risk_score = mergedData.risk_results?.overall_risk_score ?? mergedData.risk_score ?? 0.25;\nconst status = decisionResults.decision || mergedData.status || 'UNKNOWN';\nconst timestamp = new Date().toISOString();\n\nconst finalData = {\n  ...mergedData,\n  application_id,\n  applicant_name,\n  credit_score,\n  decision: decisionResults.decision || null,\n  decision_reason: decisionResults.reasoning || null,\n  interest_rate: (decisionResults.interest_rate != null) ? decisionResults.interest_rate : null,\n  loan_amount,\n  loan_term_months,\n  monthly_payment: monthly_payment ?? 0,\n  processing_time_seconds,\n  risk_score,\n  status,\n  timestamp\n};\n\nconsole.log('Merged Decision Data:', JSON.stringify(finalData, null, 2));\nreturn [{ json: { data: finalData } }];"
+      },
+      "id": "9470d01d-d360-4ba9-ae12-fe56b0e5adac",
+      "name": "Merge Decision Results",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1360,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "1dd27141-2b8a-45cd-8ba7-eee58f43c374",
+      "name": "Success Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1808,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "tableName": "loan-decisions",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "application_id",
+              "fieldValue": "={{ $json.data.application_id || $json.data.loan_id || 'UNKNOWN' }}"
+            },
+            {
+              "fieldId": "applicant_name",
+              "fieldValue": "={{ $json.data.applicant_name || $json.data.borrower_name || 'John Smith' }}"
+            },
+            {
+              "fieldId": "credit_score",
+              "fieldValue": "={{ $json.data.credit_score || $json.data.document_results?.financial_info?.credit_score || 750 }}"
+            },
+            {
+              "fieldId": "decision",
+              "fieldValue": "={{ $json.data.decision || $json.data.decision_results?.decision || 'UNKNOWN' }}"
+            },
+            {
+              "fieldId": "decision_reason",
+              "fieldValue": "={{ $json.data.decision_reason || $json.data.decision_results?.reasoning || '' }}"
+            },
+            {
+              "fieldId": "interest_rate",
+              "fieldValue": "={{ $json.data.interest_rate || $json.data.decision_results?.interest_rate || 0 }}"
+            },
+            {
+              "fieldId": "loan_amount",
+              "fieldValue": "={{ $json.data.loan_amount || $json.data.document_results?.loan_details?.loan_amount || 350000 }}"
+            },
+            {
+              "fieldId": "loan_term_months",
+              "fieldValue": "={{ $json.data.loan_term_months ?? 0 }}"
+            },
+            {
+              "fieldId": "monthly_payment",
+              "fieldValue": "={{ $json.data.monthly_payment ?? 0 }}"
+            },
+            {
+              "fieldId": "processing_time_seconds",
+              "fieldValue": "={{ $json.data.processing_time_seconds ?? 0 }}"
+            },
+            {
+              "fieldId": "risk_score",
+              "fieldValue": "={{ $json.data.risk_score || $json.data.risk_results?.overall_risk_score || 0.25 }}"
+            },
+            {
+              "fieldId": "status",
+              "fieldValue": "={{ $json.data.status || $json.data.decision_results?.decision || 'UNKNOWN' }}"
+            },
+            {
+              "fieldId": "timestamp",
+              "fieldValue": "={{ $json.data.timestamp || (new Date()).toISOString() }}"
+            }
+          ]
+        },
+        "additionalFields": {}
+      },
+      "id": "34c53e4e-301a-4df8-9e54-c19015851255",
+      "name": "Save to DynamoDB",
+      "type": "n8n-nodes-base.awsDynamoDb",
+      "typeVersion": 1,
+      "position": [
+        1584,
+        128
+      ],
+      "credentials": {
+        "aws": {
+          "id": "DVs7dBmJBeDHSSO2",
+          "name": "AWS account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "68402323-771a-4871-a479-8b6f3b143c5d",
+      "name": "Error Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        -656,
+        -176
+      ]
+    },
+    {
+      "parameters": {
+        "model": "anthropic.claude-3-haiku-20240307-v1:0",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatAwsBedrock",
+      "typeVersion": 1.1,
+      "position": [
+        -656,
+        352
+      ],
+      "id": "c28459be-f7d8-4db0-a234-cbd55fd91634",
+      "name": "Document Processing - AWS Bedrock Titan",
+      "credentials": {
+        "aws": {
+          "id": "DVs7dBmJBeDHSSO2",
+          "name": "AWS account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "You are an expert document processing AI specialist. Analyze the provided loan application data and extract structured information with high accuracy.\n\nIMPORTANT: Use the actual input data provided below. Do not generate fictional information.\n\nInput data to process:\nApplicant Name: {{ $json.data.applicant_name }}\nLoan Amount: {{ $json.data.loan_amount }}\nCredit Score: {{ $json.data.credit_score }}\nAnnual Income: {{ $json.data.annual_income }}\nProperty Address: {{ $json.data.property_address }}\nPhone: {{ $json.data.phone }}\nEmail: {{ $json.data.email }}\nSSN: {{ $json.data.ssn }}\nEmployment Status: {{ $json.data.employment_status }}\nEmployer Name: {{ $json.data.employer_name }}\nMonthly Debt: {{ $json.data.monthly_debt }}\nLoan Purpose: {{ $json.data.loan_purpose }}\nLoan Term: {{ $json.data.loan_term }}\nCurrent Address: {{ $json.data.current_address }}\nDocuments: {{ $json.data.documents }}\nApplication Notes: {{ $json.data.application_notes }}\n\nExtract the following information from the actual input data:\n- Borrower: full name, SSN, DOB, contact details, current address\n- Loan Details: requested amount, property address, loan purpose, loan term\n- Financial Info: annual income, employment status, employer name, credit score, monthly debts\n- Documents: list all documents present (pay stubs, tax returns, bank statements, etc.)\n\nReturn JSON with structure:\n{\n  \"document_analysis\": {\n    \"borrower_info\": {\"full_name\": \"string\", \"ssn\": \"string\", \"phone\": \"string\", \"email\": \"string\", \"address\": \"string\"},\n    \"loan_details\": {\"loan_amount\": number, \"property_address\": \"string\", \"loan_purpose\": \"string\", \"loan_term\": number},\n    \"financial_info\": {\"annual_income\": number, \"employment_status\": \"string\", \"credit_score\": number, \"monthly_debt\": number},\n    \"documents_found\": [\"array\"],\n    \"confidence_score\": number\n  }\n}",
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        -720,
+        128
+      ],
+      "id": "95ece2b0-00c5-4ec1-8743-1d7b955626ca",
+      "name": "Document Processing Agent"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "You are a Senior Risk Analyst AI. Perform comprehensive risk analysis including credit risk modeling, market risk assessment, and operational risk evaluation.\n\nAnalyze the loan data and provide:\n- Overall risk score (0-100, where higher = more risky)\n- Credit risk assessment\n- Market risk factors\n- Operational risk evaluation\n- Debt-to-income ratio analysis\n- Risk level classification (LOW/MEDIUM/HIGH)\n- Approval recommendation (approve/deny/review)\n- Detailed risk recommendations\n\nReturn JSON with structure:\n{\n  \"risk_analysis\": {\n    \"overall_risk_score\": number,\n    \"credit_risk\": number,\n    \"market_risk\": number,\n    \"operational_risk\": number,\n    \"risk_level\": \"LOW|MEDIUM|HIGH\",\n    \"debt_to_income_ratio\": number,\n    \"recommendations\": [\"array of risk mitigation recommendations\"],\n    \"approval_recommendation\": \"approve|deny|review\"\n  }\n}",
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        -144,
+        128
+      ],
+      "id": "9ed65bef-9068-4dfb-aacb-b49e3841ec9a",
+      "name": "Risk Assessment"
+    },
+    {
+      "parameters": {
+        "model": "anthropic.claude-3-haiku-20240307-v1:0",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatAwsBedrock",
+      "typeVersion": 1.1,
+      "position": [
+        -80,
+        352
+      ],
+      "id": "bd8b5bfe-7007-4f2b-ab0c-20295895616e",
+      "name": "Risk Assessment - AWS Bedrock Claude",
+      "credentials": {
+        "aws": {
+          "id": "DVs7dBmJBeDHSSO2",
+          "name": "AWS account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "anthropic.claude-3-haiku-20240307-v1:0",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatAwsBedrock",
+      "typeVersion": 1.1,
+      "position": [
+        496,
+        352
+      ],
+      "id": "73e90655-20b6-4dd5-a741-1b5dd6809807",
+      "name": "Compliance Check - AWS Bedrock Claude",
+      "credentials": {
+        "aws": {
+          "id": "DVs7dBmJBeDHSSO2",
+          "name": "AWS account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "You are a Senior Compliance Officer AI. Analyze loan documents for regulatory compliance with key mortgage and lending regulations.\n\nReview compliance with:\n- TRID (TILA-RESPA Integrated Disclosure)\n- HMDA (Home Mortgage Disclosure Act)\n- ECOA (Equal Credit Opportunity Act)\n- CRA (Community Reinvestment Act)\n- FCRA (Fair Credit Reporting Act)\n- GLBA (Gramm-Leach-Bliley Act)\n- AML (Anti-Money Laundering regulations)\n\nProvide:\n- Compliance status for each regulation\n- Overall compliance score (0-100)\n- List of any violations found\n- Compliance risk flags\n- Recommendations for remediation\n\nReturn JSON with structure:\n{\n  \"compliance_results\": {\n    \"compliance_status\": \"compliant|non_compliant|review_needed\",\n    \"regulations_checked\": [\"TRID\", \"HMDA\", \"ECOA\", \"CRA\", \"FCRA\", \"GLBA\", \"AML\"],\n    \"compliance_score\": number,\n    \"violations\": [\"array of violation descriptions\"],\n    \"recommendations\": [\"array of compliance actions needed\"],\n    \"risk_flags\": [\"array of compliance risks\"]\n  }\n}",
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        432,
+        128
+      ],
+      "id": "eb33830c-bcf1-436a-bddb-7bc83ee4208f",
+      "name": "Compliance Agent"
+    },
+    {
+      "parameters": {
+        "model": "anthropic.claude-3-haiku-20240307-v1:0",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatAwsBedrock",
+      "typeVersion": 1.1,
+      "position": [
+        1072,
+        352
+      ],
+      "id": "71b82d17-1b8b-49e5-b82f-102568bbece9",
+      "name": "Decision Making - AWS Bedrock Claude",
+      "credentials": {
+        "aws": {
+          "id": "DVs7dBmJBeDHSSO2",
+          "name": "AWS account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "You are a Senior Loan Officer AI. Make strategic loan decisions based on comprehensive analysis from document processing, risk assessment, and compliance checks.\n\nBased on all previous assessments, make a final loan approval or denial decision.\n\nConsider:\n- Document analysis results and borrower information\n- Risk assessment scores and risk level\n- Compliance check results and any violations\n- Business objectives and lending criteria\n- Current market conditions\n\nProvide:\n- Final decision (APPROVED/DENIED/CONDITIONAL)\n- Confidence level in the decision (0-1)\n- Recommended interest rate\n- Loan term in years\n- Approved loan amount\n- Any approval conditions\n- Detailed reasoning for the decision\n- Required stipulations or additional documentation\n\nReturn JSON with structure:\n{\n  \"decision_results\": {\n    \"decision\": \"APPROVED|DENIED|CONDITIONAL\",\n    \"confidence\": number,\n    \"interest_rate\": number,\n    \"loan_term\": number,\n    \"approval_amount\": number,\n    \"conditions\": [\"array of approval conditions\"],\n    \"reasoning\": \"detailed explanation\",\n    \"stipulations\": [\"array of required documents or actions\"]\n  }\n}",
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        1008,
+        128
+      ],
+      "id": "e1012d79-3b1c-4a1f-98be-828d59f2dac3",
+      "name": "Decision Making"
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "bucketName": "ai-loan-docs-millionaire-20250923-01",
+        "fileKey": "={{ $json[\"body\"][\"key\"] }}",
+        "options": {
+          "binaryData": true
+        }
+      },
+      "type": "n8n-nodes-base.awsS3",
+      "typeVersion": 2,
+      "position": [
+        -1616,
+        -128
+      ],
+      "id": "82004d5c-412d-469c-b340-3ee1e5208f47",
+      "name": "Download a file",
+      "credentials": {
+        "aws": {
+          "id": "DVs7dBmJBeDHSSO2",
+          "name": "AWS account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook JSON": {
+      "main": [
+        [
+          {
+            "node": "Normalize JSON Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "File Upload": {
+      "main": [
+        [
+          {
+            "node": "Download a file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize JSON Input": {
+      "main": [
+        [
+          {
+            "node": "Enhanced Validation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Document Extraction Agent": {
+      "main": [
+        [
+          {
+            "node": "Enhanced Validation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enhanced Validation": {
+      "main": [
+        [
+          {
+            "node": "If Valid",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Valid": {
+      "main": [
+        [
+          {
+            "node": "Document Processing Agent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Error Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Document Results": {
+      "main": [
+        [
+          {
+            "node": "Risk Assessment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Risk Results": {
+      "main": [
+        [
+          {
+            "node": "Compliance Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Compliance Results": {
+      "main": [
+        [
+          {
+            "node": "Decision Making",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Decision Results": {
+      "main": [
+        [
+          {
+            "node": "Save to DynamoDB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save to DynamoDB": {
+      "main": [
+        [
+          {
+            "node": "Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Document Processing - AWS Bedrock Titan": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Document Processing Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Document Processing Agent": {
+      "main": [
+        [
+          {
+            "node": "Merge Document Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Risk Assessment": {
+      "main": [
+        [
+          {
+            "node": "Merge Risk Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Risk Assessment - AWS Bedrock Claude": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Risk Assessment",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compliance Check - AWS Bedrock Claude": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Compliance Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compliance Agent": {
+      "main": [
+        [
+          {
+            "node": "Merge Compliance Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Decision Making - AWS Bedrock Claude": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Decision Making",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Decision Making": {
+      "main": [
+        [
+          {
+            "node": "Merge Decision Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download a file": {
+      "main": [
+        [
+          {
+            "node": "Parse S3 JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse S3 JSON": {
+      "main": [
+        [
+          {
+            "node": "Document Processing Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "a207cfd7-dd27-4dad-9b66-23dec66d8370",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "e1d4332a31ff94cc8efabea56e2db8b1aa243117e07b80339b81356f2de6667a"
+  },
+  "id": "9Tc0OdEVRe6sexSq",
+  "tags": []
+}

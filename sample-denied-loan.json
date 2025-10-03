@@ -1,0 +1,37 @@
+{
+  "application_id": "APP-2024-MC002",
+  "applicant_name": "Michael Chen",
+  "loan_id": "LOAN-2024-MC002",
+  "borrower_name": "Michael Chen",
+  "loan_amount": 750000,
+  "property_address": "789 Elm Street, Dallas, TX 75201",
+  "annual_income": 45000,
+  "credit_score": 580,
+  "employment_status": "Part-time",
+  "employer_name": "Retail Store",
+  "monthly_debt": 1800,
+  "loan_purpose": "Primary Residence Purchase",
+  "loan_term": 30,
+  "down_payment": 15000,
+  "property_type": "Single Family",
+  "occupancy_type": "Primary Residence",
+  "phone": "214-555-0456",
+  "email": "michael.chen@email.com",
+  "ssn": "987-65-4321",
+  "date_of_birth": "1992-09-08",
+  "current_address": "321 Maple Drive, Dallas, TX 75202",
+  "documents": [
+    {
+      "filename": "pay_stub_2024_02.pdf",
+      "mimeType": "application/pdf",
+      "size": 1200,
+      "content": "Recent pay stub showing $3,800 monthly income"
+    }
+  ],
+  "source": "web_application",
+  "processing_status": "submitted",
+  "submission_date": "2024-03-10T10:20:00Z",
+  "loan_officer": "James Patel",
+  "branch_location": "Dallas Uptown",
+  "application_notes": "Low credit score and insufficient income for requested loan amount"
+}

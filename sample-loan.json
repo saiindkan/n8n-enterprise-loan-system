@@ -1,0 +1,11 @@
+{
+  "application_id": "APP-TEST-0001",
+  "applicant_name": "Jane Doe",
+  "loan_id": "LOAN-TEST-0001",
+  "borrower_name": "Jane Doe",
+  "loan_amount": 350000,
+  "property_address": "123 Main St, Austin, TX 78701",
+  "annual_income": 120000,
+  "credit_score": 740
+}
+

@@ -49,3 +49,4 @@ curl -X POST "$WEBHOOK_URL" \
   --max-time 60 \
   --write-out "\nHTTP Status: %{http_code}\n" \
   --silent --show-error
+

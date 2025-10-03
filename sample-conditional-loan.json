@@ -1,0 +1,43 @@
+{
+  "application_id": "APP-2024-ER003",
+  "applicant_name": "Emily Rodriguez",
+  "loan_id": "LOAN-2024-ER003",
+  "borrower_name": "Emily Rodriguez",
+  "loan_amount": 380000,
+  "property_address": "555 Cedar Lane, Houston, TX 77001",
+  "annual_income": 72000,
+  "credit_score": 695,
+  "employment_status": "Full-time",
+  "employer_name": "Marketing Agency",
+  "monthly_debt": 2800,
+  "loan_purpose": "Primary Residence Purchase",
+  "loan_term": 30,
+  "down_payment": 38000,
+  "property_type": "Townhouse",
+  "occupancy_type": "Primary Residence",
+  "phone": "713-555-0789",
+  "email": "emily.rodriguez@email.com",
+  "ssn": "456-78-9012",
+  "date_of_birth": "1991-11-02",
+  "current_address": "777 Birch Street, Houston, TX 77002",
+  "documents": [
+    {
+      "filename": "pay_stub_2024_02.pdf",
+      "mimeType": "application/pdf",
+      "size": 2000,
+      "content": "Recent pay stub showing $6,000 monthly income"
+    },
+    {
+      "filename": "tax_return_2023.pdf",
+      "mimeType": "application/pdf",
+      "size": 2100,
+      "content": "2023 tax return showing $72,000 annual income"
+    }
+  ],
+  "source": "web_application",
+  "processing_status": "submitted",
+  "submission_date": "2024-03-10T10:25:00Z",
+  "loan_officer": "Alicia Gomez",
+  "branch_location": "Houston Midtown",
+  "application_notes": "Borderline credit score and higher debt-to-income ratio requiring additional verification and potential rate adjustment"
+}

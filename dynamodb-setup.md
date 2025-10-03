@@ -191,3 +191,4 @@ aws s3 cp test-loan-document.pdf s3://loan-documents-bucket/loan-applications/
 ```bash
 aws dynamodb scan --table-name loan-decisions --limit 10
 ```
+

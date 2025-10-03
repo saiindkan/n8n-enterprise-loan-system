@@ -1,0 +1,61 @@
+{
+  "application_id": "APP-2024-SAI001",
+  "applicant_name": "Sai Bhargav",
+  "loan_id": "LOAN-2024-SAI001",
+  "borrower_name": "Sai Bhargav",
+  "loan_amount": 550000,
+  "property_address": "789 Tech Street, San Francisco, CA 94105",
+  "annual_income": 150000,
+  "credit_score": 820,
+  "employment_status": "Full-time",
+  "employer_name": "AI Solutions Inc",
+  "monthly_debt": 2800,
+  "loan_purpose": "Primary Residence Purchase",
+  "loan_term": 30,
+  "down_payment": 110000,
+  "property_type": "Condominium",
+  "occupancy_type": "Primary Residence",
+  "phone": "415-555-0199",
+  "email": "sai.bhargav@email.com",
+  "ssn": "987-65-4321",
+  "date_of_birth": "1990-07-15",
+  "current_address": "456 Innovation Drive, Palo Alto, CA 94301",
+  "documents": [
+    {
+      "filename": "pay_stub_2024_02.pdf",
+      "mimeType": "application/pdf",
+      "size": 2800,
+      "content": "Recent pay stub showing $12,500 monthly income"
+    },
+    {
+      "filename": "tax_return_2023.pdf",
+      "mimeType": "application/pdf", 
+      "size": 2200,
+      "content": "2023 tax return showing $150,000 annual income"
+    },
+    {
+      "filename": "bank_statement_2024_02.pdf",
+      "mimeType": "application/pdf",
+      "size": 3800,
+      "content": "Bank statement showing $125,000 in savings and investments"
+    },
+    {
+      "filename": "credit_report.pdf",
+      "mimeType": "application/pdf",
+      "size": 1800,
+      "content": "Credit report showing 820 credit score"
+    },
+    {
+      "filename": "employment_verification.pdf",
+      "mimeType": "application/pdf",
+      "size": 1200,
+      "content": "Employment verification letter from AI Solutions Inc"
+    }
+  ],
+  "source": "web_application",
+  "processing_status": "submitted",
+  "submission_date": "2024-02-15T14:30:00Z",
+  "loan_officer": "Jennifer Martinez",
+  "branch_location": "San Francisco Financial District",
+  "application_notes": "Excellent credit profile, high income, stable employment in tech sector. Strong down payment and low debt-to-income ratio. Property in prime San Francisco location with good appreciation potential."
+}
