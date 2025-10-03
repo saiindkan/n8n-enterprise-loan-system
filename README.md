@@ -80,6 +80,23 @@ This enterprise n8n workflow orchestrates the complete enterprise loan processin
 - Enterprise database for storage
 - Email/SMS services for notifications
 
+### Run As‑Is (minimal setup)
+```bash
+# 1) Use the finalized workflow JSON in this repo
+#    n8n-enterprise-loan-system/loan-workflow-final.json
+#    (alternatively: n8n-enterprise-loan-system/n8n.json)
+
+# 2) In n8n UI → Workflows → Import from File → choose loan-workflow-final.json
+#    Then Activate (or Execute → Test Webhook if testing)
+
+# 3) Test via webhook (replace with your n8n cloud test URL)
+curl -X POST "https://<your-subdomain>.app.n8n.cloud/webhook-test/loan-application" \
+  -H "Content-Type: application/json" \
+  -d @n8n-enterprise-loan-system/sample-approved-loan.json
+
+# 4) Verify execution logs and DynamoDB writes (if configured)
+```
+
 ### Installation
 1. Import the workflow JSON file into n8n Cloud
 2. Configure webhook endpoints
